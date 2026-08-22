@@ -1,0 +1,32 @@
+<script setup lang="ts">
+import type { TableColumn } from "@nuxt/ui";
+import type { CrudField } from "~/types/crud";
+import { typeContratInputSchema, type TypeContrat } from "~/schemas/type-contrat";
+
+const repo = useTypesContratsApi();
+
+const columns: TableColumn<TypeContrat>[] = [
+  { accessorKey: "nom", header: "Nom" },
+  { accessorKey: "sigle", header: "Sigle" },
+];
+
+const fields: CrudField[] = [
+  { name: "nom", label: "Nom" },
+  { name: "sigle", label: "Sigle" },
+  { name: "description", label: "Description", type: "textarea" },
+];
+</script>
+
+<template>
+  <BaseCrudManager
+    cache-key="types-contrats"
+    title="Types de contrat"
+    subtitle="Référentiel RH"
+    entity-label="Type de contrat"
+    searchable
+    :repo="repo"
+    :columns="columns"
+    :fields="fields"
+    :schema="typeContratInputSchema"
+  />
+</template>

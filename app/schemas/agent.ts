@@ -1,0 +1,110 @@
+import { z } from "zod";
+import { personneSchema } from "~/schemas/personne";
+import { gradeSchema } from "~/schemas/grade";
+import { categorieSchema } from "~/schemas/categorie";
+import { echelonSchema } from "~/schemas/echelon";
+import { fonctionSchema } from "~/schemas/fonction";
+import { typeIntegrationSchema } from "~/schemas/type-integration";
+import { affectationSchema } from "~/schemas/affectation";
+import { nominationSchema } from "~/schemas/nomination";
+import { contratSchema } from "~/schemas/contrat";
+import { STATUTS_AGENT } from "~/constants/enums";
+
+/**
+ * Agent = personne titulaire d'un poste. Étend le socle `personne` avec les
+ * champs propres à la carrière administrative. Forme calée sur AgentResource.
+ * Les relations (`grade`, `affectation_active`…) ne sont présentes que sur le
+ * détail (`show`) ; la liste (`index`) ne renvoie que les `*_id`.
+ */
+export const agentSchema = personneSchema.extend({
+  matricule: z.string().nullable().optional(),
+  nom_complet: z.string().optional(),
+  email_professionnel: z.string().email().nullable().optional(),
+  badge_numero: z.string().nullable().optional(),
+  photo_path: z.string().nullable().optional(),
+  numero_cnss: z.string().nullable().optional(),
+  rib_bancaire: z.string().nullable().optional(),
+  statut: z.enum(STATUTS_AGENT).default("actif"),
+  date_prise_service: z.string().nullable().optional(),
+
+  grade_id: z.number().nullable().optional(),
+  grade: gradeSchema.optional(),
+  categorie_id: z.number().nullable().optional(),
+  categorie: categorieSchema.optional(),
+  echelon_id: z.number().nullable().optional(),
+  echelon: echelonSchema.optional(),
+  fonction_id: z.number().nullable().optional(),
+  fonction: fonctionSchema.optional(),
+  type_integration_id: z.number().nullable().optional(),
+  type_integration: typeIntegrationSchema.optional(),
+
+  affectation_active: affectationSchema.optional(),
+  nomination_active: nominationSchema.optional(),
+  contrat_actif: contratSchema.optional(),
+
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type Agent = z.infer<typeof agentSchema>;
+
+/**
+ * Payload de création d'un agent (Agent\CreateRequest). Le matricule, le
+ * statut et la prise de service sont gérés par le workflow d'intégration.
+ */
+export const agentInputSchema = z.object({
+  nom: z.string().min(1),
+  prenom: z.string().min(1),
+  date_naissance: z.string().min(1),
+  lieu_naissance: z.string().nullish(),
+  nationalite: z.string().nullish(),
+  genre: personneSchema.shape.genre,
+  telephone: z.string().nullish(),
+  email_personnel: z.string().email().nullish(),
+  numero_cnss: z.string().nullish(),
+  rib_bancaire: z.string().nullish(),
+  diplome_id: z.number().nullish(),
+  grade_id: z.number().nullish(),
+  categorie_id: z.number().nullish(),
+  echelon_id: z.number().nullish(),
+  fonction_id: z.number().nullish(),
+  type_integration_id: z.number(),
+});
+
+export type AgentInput = z.infer<typeof agentInputSchema>;
+
+/**
+ * Payload d'édition d'un agent (Agent\UpdateRequest). À la différence de la
+ * création, le backend n'accepte ni `type_integration_id` ni `diplome_id`,
+ * mais accepte le `statut`.
+ */
+export const agentUpdateSchema = z.object({
+  nom: z.string().min(1),
+  prenom: z.string().min(1),
+  date_naissance: z.string().min(1),
+  lieu_naissance: z.string().nullish(),
+  nationalite: z.string().nullish(),
+  genre: personneSchema.shape.genre,
+  telephone: z.string().nullish(),
+  email_personnel: z.string().email().nullish(),
+  numero_cnss: z.string().nullish(),
+  rib_bancaire: z.string().nullish(),
+  grade_id: z.number().nullish(),
+  categorie_id: z.number().nullish(),
+  echelon_id: z.number().nullish(),
+  fonction_id: z.number().nullish(),
+  statut: z.enum(STATUTS_AGENT),
+});
+
+export type AgentUpdateInput = z.infer<typeof agentUpdateSchema>;
+
+/** Modification du seul matricule (Agent\ModifierMatriculeRequest). */
+export const agentMatriculeSchema = z.object({
+  matricule: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[A-Z0-9-]+$/, "Lettres majuscules, chiffres et tirets uniquement"),
+});
+
+export type AgentMatriculeInput = z.infer<typeof agentMatriculeSchema>;

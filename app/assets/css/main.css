@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* ---------------------------------------------------------------------------
+ * Identité ARTF
+ * Police principale : Ubuntu (téléchargée automatiquement par @nuxt/fonts).
+ * Couleurs de marque : bleu #0F4C81 et rouge #ed1c24. Les échelles sont
+ * centrées sur la teinte de marque au niveau 500.
+ *
+ * ⚠️ `@theme static` est OBLIGATOIRE ici (et non `@theme`). Tailwind v4 supprime
+ * de la sortie CSS toute variable de thème qu'aucune classe utilitaire n'emploie.
+ * Or le plugin de couleurs de Nuxt UI résout la couleur primaire à l'exécution
+ * par `--ui-color-primary-500: var(--color-artf-500, )` : si la variable a été
+ * élaguée, la valeur est **vide** et tout ce qui est `bg-primary` (boutons en
+ * tête) devient **transparent**. `static` force l'émission des 11 nuances.
+ *
+ * Ces échelles ne sont pas branchées pour l'instant : le thème courant est
+ * neutre (cf. app.config.ts). Pour repasser aux couleurs ARTF, il suffit d'y
+ * remettre `primary: "artf"` / `secondary: "artfred"`.
+ * ------------------------------------------------------------------------- */
+@theme static {
+  --font-sans: "Ubuntu", ui-sans-serif, system-ui, sans-serif;
+
+  --color-artf-50: #eef4fa;
+  --color-artf-100: #d5e3f1;
+  --color-artf-200: #aec9e4;
+  --color-artf-300: #7ea7d2;
+  --color-artf-400: #4480bb;
+  --color-artf-500: #0f4c81;
+  --color-artf-600: #0d4374;
+  --color-artf-700: #0b3760;
+  --color-artf-800: #0a2e50;
+  --color-artf-900: #0a2742;
+  --color-artf-950: #06182c;
+
+  --color-artfred-50: #fdecec;
+  --color-artfred-100: #fbd5d6;
+  --color-artfred-200: #f6abae;
+  --color-artfred-300: #f17b80;
+  --color-artfred-400: #ef4d54;
+  --color-artfred-500: #ed1c24;
+  --color-artfred-600: #d11319;
+  --color-artfred-700: #ad1015;
+  --color-artfred-800: #8e1216;
+  --color-artfred-900: #761519;
+  --color-artfred-950: #400809;
+}
+
+/* La chrome applicative est désormais une navbar horizontale claire
+ * (cf. components/app/Navbar.vue) : plus de styles sidebar spécifiques. */
