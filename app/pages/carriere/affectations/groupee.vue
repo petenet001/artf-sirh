@@ -121,9 +121,9 @@ async function submit() {
             :key="ligne.key"
             class="grid items-start gap-3 rounded-lg border border-default p-3 lg:grid-cols-[1fr_1.4fr_1fr_auto]"
           >
-            <USelect v-model="ligne.agentId" :items="agentOptions" placeholder="Agent" class="w-full" />
+            <USelectMenu v-model="ligne.agentId" value-key="value" :items="agentOptions" placeholder="Agent" class="w-full" />
             <CarriereStructurePicker v-model:type="ligne.structurable_type" v-model:id="ligne.structurable_id" />
-            <USelect v-model="ligne.superieurId" :items="agentOptions" placeholder="Supérieur (auto si vide)" class="w-full" />
+            <USelectMenu v-model="ligne.superieurId" value-key="value" :items="agentOptions" placeholder="Supérieur (auto si vide)" class="w-full" />
             <UButton
               icon="i-lucide-x"
               color="neutral"

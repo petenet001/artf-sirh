@@ -237,20 +237,20 @@ function onCancel() {
     <template #carriere>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Grade" name="grade_id">
-          <USelect :model-value="asNumber(state.grade_id)" :items="gradeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.grade_id = $event" />
+          <USelectMenu value-key="value" :model-value="asNumber(state.grade_id)" :items="gradeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.grade_id = $event" />
         </UFormField>
         <UFormField label="Catégorie" name="categorie_id">
-          <USelect :model-value="asNumber(state.categorie_id)" :items="categorieOptions" placeholder="Choisir" class="w-full" @update:model-value="state.categorie_id = $event" />
+          <USelectMenu value-key="value" :model-value="asNumber(state.categorie_id)" :items="categorieOptions" placeholder="Choisir" class="w-full" @update:model-value="state.categorie_id = $event" />
         </UFormField>
         <UFormField label="Échelon" name="echelon_id">
-          <USelect :model-value="asNumber(state.echelon_id)" :items="echelonOptions" placeholder="Choisir" class="w-full" @update:model-value="state.echelon_id = $event" />
+          <USelectMenu value-key="value" :model-value="asNumber(state.echelon_id)" :items="echelonOptions" placeholder="Choisir" class="w-full" @update:model-value="state.echelon_id = $event" />
         </UFormField>
         <UFormField label="Fonction" name="fonction_id">
-          <USelect :model-value="asNumber(state.fonction_id)" :items="fonctionOptions" placeholder="Choisir" class="w-full" @update:model-value="state.fonction_id = $event" />
+          <USelectMenu value-key="value" :model-value="asNumber(state.fonction_id)" :items="fonctionOptions" placeholder="Choisir" class="w-full" @update:model-value="state.fonction_id = $event" />
         </UFormField>
 
         <UFormField v-if="!isEdit" label="Diplôme" name="diplome_id">
-          <USelect :model-value="asNumber(state.diplome_id)" :items="diplomeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.diplome_id = $event" />
+          <USelectMenu value-key="value" :model-value="asNumber(state.diplome_id)" :items="diplomeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.diplome_id = $event" />
         </UFormField>
 
         <UFormField v-if="isEdit" label="Statut" name="statut" required>

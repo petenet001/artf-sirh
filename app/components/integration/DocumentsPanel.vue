@@ -272,8 +272,9 @@ async function remove(id: number) {
             :key="row.key"
             class="grid items-center gap-3 sm:grid-cols-[1fr_auto_auto_auto]"
           >
-            <USelect
-              v-model="row.typeId"
+            <USelectMenu
+v-model="row.typeId"
+              value-key="value"
               :items="uploadTypeOptions"
               placeholder="Type de pièce"
               class="w-full"

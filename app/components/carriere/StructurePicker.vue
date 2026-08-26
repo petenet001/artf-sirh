@@ -36,6 +36,6 @@ watch(type, () => {
 <template>
   <div class="grid gap-2 sm:grid-cols-2">
     <USelect v-model="type" :items="typeItems" class="w-full" />
-    <USelect v-model="id" :items="structureOptions" placeholder="Structure" class="w-full" />
+    <USelectMenu v-model="id" value-key="value" :items="structureOptions" placeholder="Structure" class="w-full" />
   </div>
 </template>

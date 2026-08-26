@@ -209,8 +209,9 @@ const search = computed<string | undefined>({
               :model-value="asBool(state[field.name])"
               @update:model-value="state[field.name] = $event"
             />
-            <USelect
-              v-else-if="field.type === 'select'"
+            <USelectMenu
+v-else-if="field.type === 'select'"
+              value-key="value"
               :model-value="asSelectValue(state[field.name])"
               :items="field.options"
               :placeholder="field.placeholder"

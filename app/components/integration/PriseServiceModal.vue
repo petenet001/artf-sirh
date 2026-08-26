@@ -61,7 +61,7 @@ async function submit() {
     <template #body>
       <div class="space-y-4">
         <UFormField label="Responsable hiérarchique" required>
-          <USelect v-model="responsableId" :items="agentOptions" placeholder="Choisir un agent" class="w-full" />
+          <USelectMenu v-model="responsableId" value-key="value" :items="agentOptions" placeholder="Choisir un agent" class="w-full" />
         </UFormField>
         <UFormField label="Date de prise de service" required>
           <UInput v-model="date" type="date" class="w-full" />

@@ -89,14 +89,14 @@ async function submit() {
             <USelect v-model="structurableType" :items="typeItems" class="w-full" />
           </UFormField>
           <UFormField label="Structure" required>
-            <USelect v-model="structurableId" :items="structureOptions" placeholder="Choisir" class="w-full" />
+            <USelectMenu v-model="structurableId" value-key="value" :items="structureOptions" placeholder="Choisir" class="w-full" />
           </UFormField>
         </div>
         <UFormField label="Date d'affectation" required>
           <UInput v-model="date" type="date" class="w-full" />
         </UFormField>
         <UFormField label="Supérieur hiérarchique">
-          <USelect v-model="superieurId" :items="agentOptions" placeholder="Optionnel" class="w-full" />
+          <USelectMenu v-model="superieurId" value-key="value" :items="agentOptions" placeholder="Optionnel" class="w-full" />
         </UFormField>
         <UFormField label="Motif">
           <UTextarea v-model="motif" :rows="2" class="w-full" />

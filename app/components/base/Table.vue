@@ -50,8 +50,13 @@ defineSlots<Record<string, (props: { row?: Row<T>; column?: Column<T> }) => unkn
 
 // Réf typée a minima (évite l'inférence circulaire sur un composant générique).
 const table = useTemplateRef<{
-  tableApi?: { getFilteredRowModel: () => { rows: unknown[] } };
+  tableApi?: {
+    getFilteredRowModel: () => { rows: unknown[] };
+    setPageIndex: (index: number) => void;
+    setPageSize: (size: number) => void;
+  };
 }>("table");
+const tableApi = computed(() => table.value?.tableApi);
 
 // États de table (tri / recherche / pagination) — 100 % côté client.
 const sorting = ref<SortingState>([]);
@@ -65,18 +70,22 @@ const filteredCount = computed<number>(() => {
   return table.value?.tableApi?.getFilteredRowModel().rows.length ?? props.data.length;
 });
 
-const page = computed({
-  get: () => pagination.value.pageIndex + 1,
-  set: (p) => (pagination.value.pageIndex = p - 1),
-});
+// Changement de page / de taille : on passe par l'API du tableau (TanStack).
+// Muter une propriété imbriquée de `pagination` ne déclenche pas la re-slice
+// de UTable — `setPageIndex` / `setPageSize` sont la voie fiable (cf. doc Nuxt UI).
+// `v-model:pagination` renvoie ensuite l'état à `pagination` pour l'affichage.
+const page = computed(() => pagination.value.pageIndex + 1);
+function goToPage(p: number) {
+  tableApi.value?.setPageIndex(p - 1);
+}
 
 // Sélecteur « Affichage [10] » du pied de table.
 const pageSizes = [10, 25, 50, 100];
 const perPage = computed<number>({
   get: () => pagination.value.pageSize,
   set: (size: number) => {
-    pagination.value.pageSize = size;
-    pagination.value.pageIndex = 0;
+    tableApi.value?.setPageSize(size);
+    tableApi.value?.setPageIndex(0);
   },
 });
 
@@ -92,10 +101,12 @@ watch([globalFilter, () => props.data], () => {
 
 <template>
   <div class="space-y-4">
-    <div v-if="searchable || $slots.filters || $slots.actions"
+    <div
+v-if="searchable || $slots.filters || $slots.actions"
       class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-1 flex-wrap items-center gap-2">
-        <UInput v-if="searchable" v-model="globalFilter" icon="i-lucide-search" :placeholder="searchPlaceholder"
+        <UInput
+v-if="searchable" v-model="globalFilter" icon="i-lucide-search" :placeholder="searchPlaceholder"
           class="w-full max-w-sm" />
         <slot name="filters" />
       </div>
@@ -105,7 +116,8 @@ watch([globalFilter, () => props.data], () => {
     </div>
 
     <div :class="bordered && 'overflow-hidden rounded-xl border border-default bg-default'">
-      <UTable ref="table" v-model:sorting="sorting" v-model:global-filter="globalFilter" v-model:pagination="pagination"
+      <UTable
+ref="table" v-model:sorting="sorting" v-model:global-filter="globalFilter" v-model:pagination="pagination"
         :pagination-options="pageSize ? { getPaginationRowModel: getPaginationRowModel() } : undefined" :data="data"
         :columns="columns" :loading="loading" :sticky="sticky" :on-select="selectHandler" :ui="tableUi">
         <template v-for="(_, name) in $slots" #[name]="slotData">
@@ -123,8 +135,9 @@ watch([globalFilter, () => props.data], () => {
       <p class="text-sm text-muted">
         Affichage de {{ from }} à {{ to }} sur {{ filteredCount }} enregistrement{{ filteredCount > 1 ? "s" : "" }}
       </p>
-      <UPagination v-if="filteredCount > perPage" v-model:page="page" :items-per-page="perPage"
-        :total="filteredCount" />
+      <UPagination
+v-if="filteredCount > perPage" :page="page" :items-per-page="perPage"
+        :total="filteredCount" @update:page="goToPage" />
       <span v-else />
     </div>
   </div>

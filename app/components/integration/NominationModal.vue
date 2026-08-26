@@ -88,7 +88,7 @@ async function submit() {
             <USelect v-model="structurableType" :items="typeItems" class="w-full" />
           </UFormField>
           <UFormField label="Structure" required>
-            <USelect v-model="structurableId" :items="structureOptions" placeholder="Choisir" class="w-full" />
+            <USelectMenu v-model="structurableId" value-key="value" :items="structureOptions" placeholder="Choisir" class="w-full" />
           </UFormField>
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
