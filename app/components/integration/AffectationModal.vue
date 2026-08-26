@@ -2,7 +2,11 @@
 import type { Agent } from "~/schemas/agent";
 import type { STRUCTURABLE_TYPES } from "~/constants/enums";
 
-/** Crée une affectation puis l'active (fait avancer le dossier vers AFFECTE). */
+/**
+ * Crée une affectation (statut `en_attente_validation`) et redirige vers son
+ * détail carrière. L'activation n'est plus immédiate : l'affectation doit
+ * d'abord parcourir son circuit de validation (cf. page détail).
+ */
 const open = defineModel<boolean>("open", { required: true });
 const props = defineProps<{ dossierId: number; agentId: number }>();
 const emit = defineEmits<{ done: [] }>();
@@ -61,10 +65,10 @@ async function submit() {
       motif: motif.value || undefined,
       superieur_hierarchique_id: superieurId.value ?? undefined,
     });
-    await affectationsApi.activer(data.id, { dossier_integration_id: props.dossierId });
-    toast.add({ title: "Agent affecté", color: "success" });
+    toast.add({ title: "Affectation créée — circuit de validation initialisé", color: "success" });
     open.value = false;
     emit("done");
+    await navigateTo(`/carriere/affectations/${data.id}`);
   } catch (err) {
     handleError(err);
   } finally {
@@ -99,7 +103,7 @@ async function submit() {
         </UFormField>
         <div class="flex justify-end gap-2">
           <UButton color="neutral" variant="ghost" @click="open = false">Annuler</UButton>
-          <UButton :loading="submitting" @click="submit">Affecter & activer</UButton>
+          <UButton :loading="submitting" @click="submit">Créer l'affectation</UButton>
         </div>
       </div>
     </template>

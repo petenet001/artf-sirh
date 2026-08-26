@@ -28,13 +28,16 @@ const columns: TableColumn<Affectation>[] = [
 
 <template>
   <BasePanel title="Affectations" subtitle="Rattachements des agents aux structures">
+    <template #actions>
+      <UButton icon="i-lucide-users" variant="soft" to="/carriere/affectations/groupee">Affectation groupée</UButton>
+    </template>
     <BaseDataState
       :pending="pending"
       :error="error"
       :empty="!affectations.length"
       empty-label="Aucune affectation"
     >
-      <BaseTable :data="affectations" :columns="columns">
+      <BaseTable :data="affectations" :columns="columns" :row-to="(a) => `/carriere/affectations/${a.id}`">
         <template #statut-cell="{ row }">
           <CarriereStatutBadge :statut="row!.original.statut" :label="row!.original.statut_label" />
         </template>

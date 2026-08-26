@@ -12,7 +12,8 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-col gap-5 rounded-xl border border-default bg-default p-5 shadow-sm sm:flex-row sm:items-center">
+  <div
+    class="flex flex-col gap-5 rounded-3xl border border-default bg-default p-5 shadow-none sm:flex-row sm:items-center">
     <div class="shrink-0">
       <slot name="leading" />
     </div>
@@ -28,5 +29,5 @@ defineProps<{
     <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2 sm:justify-end">
       <slot name="actions" />
     </div>
-  </div>
+  <
 </template>

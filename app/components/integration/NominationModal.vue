@@ -2,7 +2,11 @@
 import type { STRUCTURABLE_TYPES } from "~/constants/enums";
 import { POSTES_NOMINATION, TYPES_ACTE_NOMINATION } from "~/schemas/nomination";
 
-/** Nomme l'agent à un poste de responsabilité puis active (dossier → NOMME). */
+/**
+ * Crée une nomination (statut `en_attente`) et redirige vers son détail
+ * carrière. L'activation n'est plus immédiate : la nomination doit d'abord
+ * parcourir son circuit de validation (cf. page détail).
+ */
 const open = defineModel<boolean>("open", { required: true });
 const props = defineProps<{ dossierId: number; agentId: number }>();
 const emit = defineEmits<{ done: [] }>();
@@ -57,10 +61,10 @@ async function submit() {
       date_debut: date.value,
       type_acte: (typeActe.value as (typeof TYPES_ACTE_NOMINATION)[number]) || undefined,
     });
-    await nominationsApi.activer(data.id, { dossier_integration_id: props.dossierId });
-    toast.add({ title: "Agent nommé", color: "success" });
+    toast.add({ title: "Nomination créée — circuit de validation initialisé", color: "success" });
     open.value = false;
     emit("done");
+    await navigateTo(`/carriere/nominations/${data.id}`);
   } catch (err) {
     handleError(err);
   } finally {
@@ -97,7 +101,7 @@ async function submit() {
         </div>
         <div class="flex justify-end gap-2">
           <UButton color="neutral" variant="ghost" @click="open = false">Annuler</UButton>
-          <UButton :loading="submitting" @click="submit">Nommer & activer</UButton>
+          <UButton :loading="submitting" @click="submit">Créer la nomination</UButton>
         </div>
       </div>
     </template>

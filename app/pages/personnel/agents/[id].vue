@@ -125,7 +125,7 @@ async function onDelete() {
         <div class="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
           <BaseSideNav v-model="section" :items="sections" class="h-fit" />
 
-          <div class="rounded-xl border border-default bg-default p-5 shadow-sm sm:p-6">
+          <div class="rounded-2xl border border-default bg-default p-5 shadow-none sm:p-6">
             <!-- Informations -->
             <dl v-if="section === 'infos'" class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
               <BaseDefItem label="Âge" :value="age" />

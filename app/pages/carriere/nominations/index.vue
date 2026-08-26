@@ -24,13 +24,16 @@ const columns: TableColumn<Nomination>[] = [
 
 <template>
   <BasePanel title="Nominations" subtitle="Nominations des agents aux postes de responsabilité">
+    <template #actions>
+      <UButton icon="i-lucide-users" variant="soft" to="/carriere/nominations/groupee">Nomination groupée</UButton>
+    </template>
     <BaseDataState
       :pending="pending"
       :error="error"
       :empty="!nominations.length"
       empty-label="Aucune nomination"
     >
-      <BaseTable :data="nominations" :columns="columns">
+      <BaseTable :data="nominations" :columns="columns" :row-to="(n) => `/carriere/nominations/${n.id}`">
         <template #statut-cell="{ row }">
           <CarriereStatutBadge :statut="row!.original.statut" :label="row!.original.statut_label" />
         </template>
