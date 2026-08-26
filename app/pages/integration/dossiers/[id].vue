@@ -215,7 +215,11 @@ const tab = ref("apercu");
             </div>
 
             <div v-show="tab === 'pieces'">
-              <IntegrationDocumentsPanel :key="`d${refreshKey}`" :dossier-id="id" />
+              <IntegrationDocumentsPanel
+                :key="`d${refreshKey}`"
+                :dossier-id="id"
+                :type-integration-id="dossier.type_integration_id ?? dossier.type_integration?.id ?? null"
+              />
             </div>
             <div v-show="tab === 'circuit'">
               <IntegrationCircuitPanel :key="`c${refreshKey}`" :dossier-id="id" @changed="refreshAll" />

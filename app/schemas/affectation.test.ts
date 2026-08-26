@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { affectationSchema, affectationInputSchema } from "./affectation";
+import {
+  affectationSchema,
+  affectationInputSchema,
+  affectationGroupeeInputSchema,
+  lotAffectationSchema,
+} from "./affectation";
 
 describe("affectationSchema", () => {
   const valid = {
@@ -41,5 +46,39 @@ describe("affectationSchema", () => {
         date_affectation: "2026-01-10",
       }),
     ).toThrow();
+  });
+
+  it("affectationGroupeeInputSchema valide un lot d'au moins deux agents", () => {
+    const parsed = affectationGroupeeInputSchema.parse({
+      date_affectation: "2026-01-10",
+      motif: "Réorganisation",
+      agents: [
+        { agent_id: 1, structurable_type: "App\\Models\\Service", structurable_id: 3 },
+        { agent_id: 2, structurable_type: "App\\Models\\Bureau", structurable_id: 4 },
+      ],
+    });
+    expect(parsed.agents).toHaveLength(2);
+  });
+
+  it("affectationGroupeeInputSchema rejette un lot d'un seul agent", () => {
+    expect(() =>
+      affectationGroupeeInputSchema.parse({
+        date_affectation: "2026-01-10",
+        agents: [{ agent_id: 1, structurable_type: "App\\Models\\Service", structurable_id: 3 }],
+      }),
+    ).toThrow();
+  });
+
+  it("lotAffectationSchema valide un lot avec ses affectations", () => {
+    const parsed = lotAffectationSchema.parse({
+      id: 5,
+      date_affectation: "2026-01-10",
+      statut: "en_attente_validation",
+      statut_label: "En attente de validation",
+      total: 2,
+      affectations: [{ ...valid, lot_affectation_id: 5 }],
+    });
+    expect(parsed.total).toBe(2);
+    expect(parsed.affectations?.[0]?.lot_affectation_id).toBe(5);
   });
 });

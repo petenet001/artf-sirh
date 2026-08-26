@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { serviceInputSchema, type Service } from "~/schemas/service";
 
 const repo = useServicesApi();
+const auth = useAuthStore();
 const directionsApi = useDirectionsApi();
 const { options: directionOptions, labelById: directionLabel } = useResourceOptions(
   "opt-directions",
@@ -32,6 +33,8 @@ const fields = computed<CrudField[]>(() => [
     entity-label="Service"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-structure') || auth.can('modifier-structure')"
+    :can-delete="auth.can('supprimer-structure')"
     :columns="columns"
     :fields="fields"
     :schema="serviceInputSchema"

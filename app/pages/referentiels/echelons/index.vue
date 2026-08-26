@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { echelonInputSchema, type Echelon } from "~/schemas/echelon";
 
 const repo = useEchelonsApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<Echelon>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Échelon"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="echelonInputSchema"

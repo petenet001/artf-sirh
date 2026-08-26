@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { fonctionInputSchema, type Fonction } from "~/schemas/fonction";
 
 const repo = useFonctionsApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<Fonction>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Fonction"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="fonctionInputSchema"

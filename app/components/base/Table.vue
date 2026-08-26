@@ -92,18 +92,11 @@ watch([globalFilter, () => props.data], () => {
 
 <template>
   <div class="space-y-4">
-    <div
-      v-if="searchable || $slots.filters || $slots.actions"
-      class="flex flex-wrap items-center justify-between gap-3"
-    >
+    <div v-if="searchable || $slots.filters || $slots.actions"
+      class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-1 flex-wrap items-center gap-2">
-        <UInput
-          v-if="searchable"
-          v-model="globalFilter"
-          icon="i-lucide-search"
-          :placeholder="searchPlaceholder"
-          class="w-full max-w-sm"
-        />
+        <UInput v-if="searchable" v-model="globalFilter" icon="i-lucide-search" :placeholder="searchPlaceholder"
+          class="w-full max-w-sm" />
         <slot name="filters" />
       </div>
       <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2">
@@ -112,26 +105,16 @@ watch([globalFilter, () => props.data], () => {
     </div>
 
     <div :class="bordered && 'overflow-hidden rounded-xl border border-default bg-default'">
-      <UTable
-        ref="table"
-        v-model:sorting="sorting"
-        v-model:global-filter="globalFilter"
-        v-model:pagination="pagination"
-        :pagination-options="pageSize ? { getPaginationRowModel: getPaginationRowModel() } : undefined"
-        :data="data"
-        :columns="columns"
-        :loading="loading"
-        :sticky="sticky"
-        :on-select="selectHandler"
-        :ui="tableUi"
-      >
+      <UTable ref="table" v-model:sorting="sorting" v-model:global-filter="globalFilter" v-model:pagination="pagination"
+        :pagination-options="pageSize ? { getPaginationRowModel: getPaginationRowModel() } : undefined" :data="data"
+        :columns="columns" :loading="loading" :sticky="sticky" :on-select="selectHandler" :ui="tableUi">
         <template v-for="(_, name) in $slots" #[name]="slotData">
           <slot v-if="name !== 'filters' && name !== 'actions'" :name="name" v-bind="slotData" />
         </template>
       </UTable>
     </div>
 
-    
+
     <div v-if="pageSize && filteredCount" class="flex flex-wrap items-center justify-between gap-3 px-1">
       <div class="flex items-center gap-2 text-sm text-muted">
         <span>Affichage</span>
@@ -140,12 +123,8 @@ watch([globalFilter, () => props.data], () => {
       <p class="text-sm text-muted">
         Affichage de {{ from }} à {{ to }} sur {{ filteredCount }} enregistrement{{ filteredCount > 1 ? "s" : "" }}
       </p>
-      <UPagination
-        v-if="filteredCount > perPage"
-        v-model:page="page"
-        :items-per-page="perPage"
-        :total="filteredCount"
-      />
+      <UPagination v-if="filteredCount > perPage" v-model:page="page" :items-per-page="perPage"
+        :total="filteredCount" />
       <span v-else />
     </div>
   </div>

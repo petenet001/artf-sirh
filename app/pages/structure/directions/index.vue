@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { directionInputSchema, type Direction } from "~/schemas/direction";
 
 const repo = useDirectionsApi();
+const auth = useAuthStore();
 const administrationsApi = useAdministrationsApi();
 const { options: adminOptions, labelById: adminLabel } = useResourceOptions(
   "opt-administrations",
@@ -32,6 +33,8 @@ const fields = computed<CrudField[]>(() => [
     entity-label="Direction"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-structure') || auth.can('modifier-structure')"
+    :can-delete="auth.can('supprimer-structure')"
     :columns="columns"
     :fields="fields"
     :schema="directionInputSchema"

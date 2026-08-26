@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { typeContratInputSchema, type TypeContrat } from "~/schemas/type-contrat";
 
 const repo = useTypesContratsApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<TypeContrat>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Type de contrat"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="typeContratInputSchema"

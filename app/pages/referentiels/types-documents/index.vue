@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { typeDocumentInputSchema, type TypeDocument } from "~/schemas/type-document";
 
 const repo = useTypesDocumentsApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<TypeDocument>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Type de document"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="typeDocumentInputSchema"

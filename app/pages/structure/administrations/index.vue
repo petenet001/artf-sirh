@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { administrationInputSchema, type Administration } from "~/schemas/administration";
 
 const repo = useAdministrationsApi();
+const auth = useAuthStore();
 const localitesApi = useLocalitesApi();
 const { options: localiteOptions, labelById: localiteLabel } = useResourceOptions(
   "opt-localites",
@@ -32,6 +33,8 @@ const fields = computed<CrudField[]>(() => [
     entity-label="Administration"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-structure') || auth.can('modifier-structure')"
+    :can-delete="auth.can('supprimer-structure')"
     :columns="columns"
     :fields="fields"
     :schema="administrationInputSchema"

@@ -66,7 +66,13 @@ export default defineNuxtConfig({
   nitro: {
     devProxy: {
       "/api": {
-        target: "http://artfrh.sc1difl4205.universe.wf/api",
+        // ⚠️ DEV LOCAL TEMPORAIRE : basculé vers le backend Laravel local
+        // (`php artisan serve` sur project-api-rh-artf, port 8000) car Tiger
+        // Protect (o2switch) challenge désormais tous les POST par un captcha,
+        // ce qui bloque `/login`. Remettre la cible distante
+        // (`http://artfrh.sc1difl4205.universe.wf/api`) une fois Tiger Protect
+        // désactivé côté cPanel.
+        target: "http://127.0.0.1:8000/api",
         changeOrigin: true,
         // L'hébergement o2switch (« Tiger Protect ») renvoie un challenge 307
         // aux requêtes dont le User-Agent ressemble à un navigateur. Comme le

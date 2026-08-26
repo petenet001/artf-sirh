@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { typeIntegrationInputSchema, type TypeIntegration } from "~/schemas/type-integration";
 
 const repo = useTypesIntegrationsApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<TypeIntegration>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -24,6 +25,8 @@ const fields: CrudField[] = [
     entity-label="Type d'intégration"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="typeIntegrationInputSchema"

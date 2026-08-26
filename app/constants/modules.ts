@@ -115,6 +115,24 @@ export const modules: AppModule[] = [
     ],
   },
   {
+    key: "carriere",
+    label: "Carrière",
+    description: "Affectations, nominations et vie administrative des agents.",
+    icon: "i-lucide-briefcase",
+    to: "/carriere/affectations",
+    match: ["/carriere"],
+    // Actes RH (affectations/nominations/contrats/salaires) → réservé au métier
+    // RH + admin. La hiérarchie consulte la carrière depuis la fiche agent.
+    gate: { anyPermission: ["gerer-nominations", "consulter-recrutement"] },
+    nav: [
+      [
+        { label: "Affectations", icon: "i-lucide-map-pin", to: "/carriere/affectations" },
+        { label: "Nominations", icon: "i-lucide-award", to: "/carriere/nominations" },
+        { label: "Postes vacants", icon: "i-lucide-user-search", to: "/carriere/postes-vacants" },
+      ],
+    ],
+  },
+  {
     key: "remuneration",
     label: "Rémunération",
     description: "Grille salariale et salaires des agents.",

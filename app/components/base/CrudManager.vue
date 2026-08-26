@@ -22,7 +22,23 @@ const props = defineProps<{
   entityLabel: string;
   /** Active une recherche par `nom` (égalité exacte côté API). */
   searchable?: boolean;
+  /**
+   * Autorise la création et l'édition. À `false` (droit manquant), on masque le
+   * bouton « Nouveau » et le crayon d'édition (cf. note rôles — un 403 ⇒ masquer,
+   * ne pas proposer). Défaut : `true` (aucun changement pour les pages existantes).
+   */
+  canWrite?: boolean;
+  /**
+   * Autorise la suppression (corbeille). Gardé à part car un rôle peut créer /
+   * éditer sans pouvoir supprimer (ex. `rh` sur les référentiels). Défaut :
+   * suit `canWrite`.
+   */
+  canDelete?: boolean;
 }>();
+
+const writable = computed(() => props.canWrite !== false);
+const deletable = computed(() => props.canDelete ?? writable.value);
+const hasRowActions = computed(() => writable.value || deletable.value);
 
 const toast = useToast();
 const handleError = useApiError();
@@ -36,11 +52,10 @@ const { data, pending, error, refresh } = useAsyncData(
 );
 const items = computed(() => data.value?.data ?? []);
 
-// Colonne d'actions ajoutée à la volée à droite du tableau.
-const columns = computed<TableColumn<T>[]>(() => [
-  ...props.columns,
-  { id: "actions", header: "" },
-]);
+// Colonne d'actions ajoutée à la volée à droite du tableau (si une action existe).
+const columns = computed<TableColumn<T>[]>(() =>
+  hasRowActions.value ? [...props.columns, { id: "actions", header: "" }] : [...props.columns],
+);
 
 // — Formulaire (création / édition) ————————————————————————————
 const open = ref(false);
@@ -122,7 +137,7 @@ const search = computed<string | undefined>({
 
 <template>
   <BasePanel :title="title" :subtitle="subtitle">
-    <template #actions>
+    <template v-if="writable" #actions>
       <UButton icon="i-lucide-plus" @click="openCreate">Nouveau</UButton>
     </template>
 
@@ -140,6 +155,7 @@ const search = computed<string | undefined>({
         <template #actions-cell="{ row }">
           <div class="flex justify-end gap-1">
             <UButton
+              v-if="writable"
               icon="i-lucide-pencil"
               color="neutral"
               variant="ghost"
@@ -148,6 +164,7 @@ const search = computed<string | undefined>({
               @click="openEdit(row!.original)"
             />
             <UButton
+              v-if="deletable"
               icon="i-lucide-trash-2"
               color="error"
               variant="ghost"

@@ -8,8 +8,9 @@ import type {
 
 /**
  * Repository des salaires d'agents. Seul endroit qui connaît ces routes.
- * Deux familles : les routes globales `/salaires-agents` et les sous-routes
- * `/integration/agents/{id}/salaires`. Les bulletins/attestations sont des PDF
+ * Deux familles : les routes globales `/salaires-agents` (racine, inchangées) et
+ * les sous-routes carrière `/carriere/agents/{id}/salaires` (alias `/integration`
+ * encore acceptés mais non ciblés). Les bulletins/attestations sont des PDF
  * (blob). Requiert les permissions `consulter-salaires` / `gerer-salaires`.
  */
 export function useSalairesAgentsApi() {
@@ -34,21 +35,21 @@ export function useSalairesAgentsApi() {
     bulletinById: (id: number) =>
       api<Blob>(`/salaires-agents/${id}/bulletin`, { responseType: "blob" }),
 
-    // — Sous-ressources d'un agent ————————————————————————————
+    // — Sous-ressources carrière d'un agent ——————————————————————
     byAgent: (agentId: number) =>
-      api<ApiCollection<SalaireAgent>>(`/integration/agents/${agentId}/salaires`),
+      api<ApiCollection<SalaireAgent>>(`/carriere/agents/${agentId}/salaires`),
 
     actuel: (agentId: number) =>
-      api<ApiResponse<SalaireAgent>>(`/integration/agents/${agentId}/salaires/actuel`),
+      api<ApiResponse<SalaireAgent>>(`/carriere/agents/${agentId}/salaires/actuel`),
 
     historique: (agentId: number) =>
-      api<ApiCollection<SalaireAgent>>(`/integration/agents/${agentId}/salaires/historique`),
+      api<ApiCollection<SalaireAgent>>(`/carriere/agents/${agentId}/salaires/historique`),
 
     bulletin: (agentId: number) =>
-      api<Blob>(`/integration/agents/${agentId}/salaires/bulletin`, { responseType: "blob" }),
+      api<Blob>(`/carriere/agents/${agentId}/salaires/bulletin`, { responseType: "blob" }),
 
     avancerEchelon: (agentId: number, payload: SalaireAgentAvancerEchelon) =>
-      api<ApiResponse<SalaireAgent>>(`/integration/agents/${agentId}/salaires/avancer-echelon`, {
+      api<ApiResponse<SalaireAgent>>(`/carriere/agents/${agentId}/salaires/avancer-echelon`, {
         method: "POST",
         body: payload,
       }),

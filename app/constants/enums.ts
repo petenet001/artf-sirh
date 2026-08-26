@@ -51,6 +51,33 @@ export const TYPES_ACTE_ADMINISTRATIF = [
 /** Statut d'un agent (Agent/UpdateRequest + migration `add_stagiaire_to_agents_statut`). */
 export const STATUTS_AGENT = ["actif", "inactif", "suspendu", "retraite", "stagiaire"] as const;
 
+/**
+ * App\Enums\StatutAffectation — cycle de vie d'une affectation (module carrière).
+ * ⚠️ Distinct de la nomination : `en_attente_validation` et `terminee`.
+ */
+export const STATUTS_AFFECTATION = [
+  "en_attente_validation",
+  "approuvee",
+  "active",
+  "terminee",
+  "rejetee",
+] as const;
+
+/**
+ * App\Enums\StatutNomination — cycle de vie d'une nomination (module carrière).
+ * ⚠️ Distinct de l'affectation : `en_attente` et `cloturee`.
+ */
+export const STATUTS_NOMINATION = [
+  "en_attente",
+  "approuvee",
+  "active",
+  "cloturee",
+  "rejetee",
+] as const;
+
+/** App\Enums\TypeActeNomination — nature de l'acte d'une nomination. */
+export const TYPES_ACTE_NOMINATION = ["arrete", "decision", "note_service"] as const;
+
 /** App\Enums\StatutSalaireAgent — état d'une ligne de salaire d'agent. */
 export const STATUTS_SALAIRE_AGENT = ["actif", "cloture"] as const;
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SideNavItem } from "~/types/sidenav";
+import { structurableLabel } from "~/constants/carriere";
 
 /**
  * Fiche agent, calée sur la maquette : carte d'en-tête (photo, identité,
@@ -9,6 +10,12 @@ import type { SideNavItem } from "~/types/sidenav";
 const route = useRoute();
 const id = computed(() => Number(route.params.id));
 const { agent, pending, error } = useAgent(id);
+
+// Synthèse carrière (endpoint dédié) : alimente la section « Situation
+// administrative » — contrat / affectation / nomination / salaire actifs.
+const { synthese, pending: synthesePending, error: syntheseError } = useCarriereSynthese(id);
+const fmtMontant = (n?: number | null) =>
+  n == null ? "—" : `${new Intl.NumberFormat("fr-FR").format(n)} FCFA`;
 
 const agentsApi = useAgentsApi();
 const toast = useToast();
@@ -51,7 +58,7 @@ const age = computed(() => {
 const sections: SideNavItem[] = [
   { key: "infos", label: "Informations", icon: "i-lucide-user" },
   { key: "carriere", label: "Carrière", icon: "i-lucide-briefcase" },
-  { key: "engagements", label: "Affectations & contrats", icon: "i-lucide-building-2" },
+  { key: "engagements", label: "Situation administrative", icon: "i-lucide-building-2" },
 ];
 const section = ref("infos");
 
@@ -143,38 +150,73 @@ async function onDelete() {
               <BaseDefItem label="Fonction" :value="agent.fonction?.nom" />
             </dl>
 
-            <!-- Affectations & contrats -->
-            <div v-else class="grid gap-6 lg:grid-cols-3">
-              <div>
-                <BaseCardTitle icon="i-lucide-building-2" title="Affectation active" />
-                <dl v-if="agent.affectation_active" class="mt-4 space-y-4">
-                  <BaseDefItem label="Statut" :value="agent.affectation_active.statut" />
-                  <BaseDefItem label="Date d'affectation" :value="formatDateLong(agent.affectation_active.date_affectation)" />
-                  <BaseDefItem label="Date de fin" :value="formatDateLong(agent.affectation_active.date_fin)" />
-                  <BaseDefItem label="Motif" :value="agent.affectation_active.motif" flush />
-                </dl>
-                <p v-else class="mt-4 text-sm text-muted">Aucune affectation active.</p>
-              </div>
+            <!-- Situation administrative (synthèse carrière) -->
+            <div v-else>
+              <BaseDataState :pending="synthesePending" :error="syntheseError" :empty="false">
+                <div class="grid gap-6 sm:grid-cols-2">
+                  <!-- Affectation active -->
+                  <div>
+                    <BaseCardTitle icon="i-lucide-building-2" title="Affectation active" />
+                    <template v-if="synthese?.affectation_active">
+                      <CarriereStatutBadge
+                        class="mt-3"
+                        :statut="synthese.affectation_active.statut"
+                        :label="synthese.affectation_active.statut_label"
+                      />
+                      <dl class="mt-4 space-y-4">
+                        <BaseDefItem label="Structure" :value="structurableLabel(synthese.affectation_active.structurable_type)" />
+                        <BaseDefItem label="Date d'affectation" :value="formatDateLong(synthese.affectation_active.date_affectation)" />
+                        <BaseDefItem label="Supérieur" :value="synthese.affectation_active.superieur_hierarchique?.nom_complet" flush />
+                      </dl>
+                    </template>
+                    <p v-else class="mt-4 text-sm text-muted">Aucune affectation active.</p>
+                  </div>
 
-              <div>
-                <BaseCardTitle icon="i-lucide-award" title="Nomination active" />
-                <dl v-if="agent.nomination_active" class="mt-4 space-y-4">
-                  <BaseDefItem label="Poste" :value="agent.nomination_active.poste" />
-                  <BaseDefItem label="Statut" :value="agent.nomination_active.statut" />
-                  <BaseDefItem label="Date de début" :value="formatDateLong(agent.nomination_active.date_debut)" flush />
-                </dl>
-                <p v-else class="mt-4 text-sm text-muted">Aucune nomination active.</p>
-              </div>
+                  <!-- Nomination active -->
+                  <div>
+                    <BaseCardTitle icon="i-lucide-award" title="Nomination active" />
+                    <template v-if="synthese?.nomination_active">
+                      <CarriereStatutBadge
+                        class="mt-3"
+                        :statut="synthese.nomination_active.statut"
+                        :label="synthese.nomination_active.statut_label"
+                      />
+                      <dl class="mt-4 space-y-4">
+                        <BaseDefItem label="Poste" :value="synthese.nomination_active.poste" />
+                        <BaseDefItem
+                          label="Structure"
+                          :value="synthese.nomination_active.structure?.nom ?? structurableLabel(synthese.nomination_active.structurable_type)"
+                        />
+                        <BaseDefItem label="Date de début" :value="formatDateLong(synthese.nomination_active.date_debut)" flush />
+                      </dl>
+                    </template>
+                    <p v-else class="mt-4 text-sm text-muted">Aucune nomination active.</p>
+                  </div>
 
-              <div>
-                <BaseCardTitle icon="i-lucide-file-text" title="Contrat actif" />
-                <dl v-if="agent.contrat_actif" class="mt-4 space-y-4">
-                  <BaseDefItem label="Statut" :value="agent.contrat_actif.statut" />
-                  <BaseDefItem label="Date de début" :value="formatDateLong(agent.contrat_actif.date_debut)" />
-                  <BaseDefItem label="Date de fin" :value="formatDateLong(agent.contrat_actif.date_fin)" flush />
-                </dl>
-                <p v-else class="mt-4 text-sm text-muted">Aucun contrat actif.</p>
-              </div>
+                  <!-- Contrat actif -->
+                  <div>
+                    <BaseCardTitle icon="i-lucide-file-text" title="Contrat actif" />
+                    <dl v-if="synthese?.contrat_actif" class="mt-4 space-y-4">
+                      <BaseDefItem label="Statut" :value="synthese.contrat_actif.statut" />
+                      <BaseDefItem label="Date de début" :value="formatDateLong(synthese.contrat_actif.date_debut)" />
+                      <BaseDefItem label="Date de fin" :value="formatDateLong(synthese.contrat_actif.date_fin)" flush />
+                    </dl>
+                    <p v-else class="mt-4 text-sm text-muted">Aucun contrat actif.</p>
+                  </div>
+
+                  <!-- Salaire actuel -->
+                  <div>
+                    <BaseCardTitle icon="i-lucide-wallet" title="Salaire actuel" />
+                    <dl v-if="synthese?.salaire_actuel" class="mt-4 space-y-4">
+                      <BaseDefItem label="Montant de base" :value="fmtMontant(synthese.salaire_actuel.montant_base)" />
+                      <BaseDefItem label="Montant net" :value="fmtMontant(synthese.salaire_actuel.montant_net)" />
+                      <BaseDefItem label="Échelon" :value="String(synthese.salaire_actuel.echelon)" />
+                      <BaseDefItem label="Depuis" :value="formatDateLong(synthese.salaire_actuel.date_debut)" flush />
+                    </dl>
+                    <p v-else class="mt-4 text-sm text-muted">Aucun salaire enregistré.</p>
+                  </div>
+                </div>
+              </BaseDataState>
             </div>
           </div>
         </div>

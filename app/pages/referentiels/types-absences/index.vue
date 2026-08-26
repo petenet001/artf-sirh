@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { typeAbsenceInputSchema, type TypeAbsence } from "~/schemas/type-absence";
 
 const repo = useTypesAbsencesApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<TypeAbsence>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Type d'absence"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="typeAbsenceInputSchema"

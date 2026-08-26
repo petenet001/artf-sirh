@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { bureauInputSchema, type Bureau } from "~/schemas/bureau";
 
 const repo = useBureauxApi();
+const auth = useAuthStore();
 const servicesApi = useServicesApi();
 const { options: serviceOptions, labelById: serviceLabel } = useResourceOptions(
   "opt-services",
@@ -32,6 +33,8 @@ const fields = computed<CrudField[]>(() => [
     entity-label="Bureau"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-structure') || auth.can('modifier-structure')"
+    :can-delete="auth.can('supprimer-structure')"
     :columns="columns"
     :fields="fields"
     :schema="bureauInputSchema"

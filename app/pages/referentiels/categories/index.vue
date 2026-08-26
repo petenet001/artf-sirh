@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { categorieInputSchema, type Categorie } from "~/schemas/categorie";
 
 const repo = useCategoriesApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<Categorie>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Catégorie"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="categorieInputSchema"

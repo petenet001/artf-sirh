@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { typeCongeInputSchema, type TypeConge } from "~/schemas/type-conge";
 
 const repo = useTypesCongesApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<TypeConge>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -25,6 +26,8 @@ const fields: CrudField[] = [
     entity-label="Type de congé"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="typeCongeInputSchema"

@@ -4,6 +4,7 @@ import type { CrudField } from "~/types/crud";
 import { gradeInputSchema, type Grade } from "~/schemas/grade";
 
 const repo = useGradesApi();
+const auth = useAuthStore();
 
 const columns: TableColumn<Grade>[] = [
   { accessorKey: "nom", header: "Nom" },
@@ -27,6 +28,8 @@ const fields: CrudField[] = [
     entity-label="Grade"
     searchable
     :repo="repo"
+    :can-write="auth.can('creer-referentiels') || auth.can('modifier-referentiels')"
+    :can-delete="auth.can('supprimer-referentiels')"
     :columns="columns"
     :fields="fields"
     :schema="gradeInputSchema"
