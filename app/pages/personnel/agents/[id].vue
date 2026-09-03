@@ -9,7 +9,9 @@ import { structurableLabel } from "~/constants/carriere";
  */
 const route = useRoute();
 const id = computed(() => Number(route.params.id));
-const { agent, pending, error } = useAgent(id);
+// Fiche personnel (`/personnel/agents/{id}`) : superset qui embarque identité,
+// carrière ET vie courante (infos, contacts, situation, documents) en une réponse.
+const { agent, pending, error, refresh } = useFicheAgent(id);
 
 // Synthèse carrière (endpoint dédié) : alimente la section « Situation
 // administrative » — contrat / affectation / nomination / salaire actifs.
@@ -17,9 +19,34 @@ const { synthese, pending: synthesePending, error: syntheseError } = useCarriere
 const fmtMontant = (n?: number | null) =>
   n == null ? "—" : `${new Intl.NumberFormat("fr-FR").format(n)} FCFA`;
 
+const auth = useAuthStore();
 const agentsApi = useAgentsApi();
+const personnelApi = usePersonnelAgentsApi();
 const toast = useToast();
 const handleError = useApiError();
+
+// Écriture vie courante réservée au métier RH (comme le reste de Personnel).
+const canEdit = computed(() => auth.can("modifier-agents"));
+// `archived_at` (posé à l'archivage, remis à null au désarchivage) est le signal
+// fiable : le statut « archive » côté API ne fait pas partie des statuts éditables.
+const estArchive = computed(() => !!agent.value?.archived_at);
+
+// — Archivage ————————————————————————————————————————————————
+const archiverOpen = ref(false);
+const archiveBusy = ref(false);
+async function desarchiver() {
+  if (!agent.value) return;
+  archiveBusy.value = true;
+  try {
+    await personnelApi.desarchiver(agent.value.id);
+    toast.add({ title: "Agent désarchivé (statut inactif)", color: "success" });
+    await refresh();
+  } catch (err) {
+    handleError(err);
+  } finally {
+    archiveBusy.value = false;
+  }
+}
 
 const statutColor: Record<string, "success" | "neutral" | "warning" | "error" | "primary"> = {
   actif: "success",
@@ -57,6 +84,8 @@ const age = computed(() => {
 
 const sections: SideNavItem[] = [
   { key: "infos", label: "Informations", icon: "i-lucide-user" },
+  { key: "dossier", label: "Dossier (vie courante)", icon: "i-lucide-folder-open" },
+  { key: "documents", label: "Documents", icon: "i-lucide-folder" },
   { key: "carriere", label: "Carrière", icon: "i-lucide-briefcase" },
   { key: "engagements", label: "Situation administrative", icon: "i-lucide-building-2" },
 ];
@@ -117,9 +146,44 @@ async function onDelete() {
               Retour
             </UButton>
             <UButton icon="i-lucide-pencil" :to="`/personnel/agents/${id}/modifier`">Modifier la fiche</UButton>
+            <UButton
+              v-if="canEdit && estArchive"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-archive-restore"
+              :loading="archiveBusy"
+              @click="desarchiver"
+            >
+              Désarchiver
+            </UButton>
+            <UButton
+              v-else-if="canEdit"
+              color="warning"
+              variant="soft"
+              icon="i-lucide-archive"
+              @click="archiverOpen = true"
+            >
+              Archiver
+            </UButton>
             <UButton color="error" variant="soft" icon="i-lucide-trash-2" @click="onDelete">Supprimer</UButton>
           </template>
         </BaseProfileHeader>
+
+        <!-- Bandeau d'archivage -->
+        <div
+          v-if="estArchive"
+          class="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4"
+        >
+          <UIcon name="i-lucide-archive" class="mt-0.5 size-5 shrink-0 text-warning" />
+          <div class="text-sm">
+            <p class="font-medium text-highlighted">Agent archivé</p>
+            <p class="text-muted">
+              <span v-if="agent.motif_archivage">{{ agent.motif_archivage }}</span>
+              <span v-if="agent.archived_at"> · le {{ formatDateLong(agent.archived_at) }}</span>
+              — le compte utilisateur est désactivé et les écritures du dossier sont bloquées.
+            </p>
+          </div>
+        </div>
 
         <!-- Navigation de section (gauche) + détail (droite) -->
         <div class="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -141,6 +205,45 @@ async function onDelete() {
               <BaseDefItem label="RIB bancaire" :value="agent.rib_bancaire" />
               <BaseDefItem label="Type d'intégration" :value="agent.type_integration?.nom" />
             </dl>
+
+            <!-- Dossier (vie courante) -->
+            <div v-else-if="section === 'dossier'" class="space-y-6">
+              <PersonnelInfosPersonnellesCard
+                :agent-id="agent.id"
+                :infos="agent.informations_personnelles"
+                :can-edit="canEdit"
+                @changed="refresh"
+              />
+              <PersonnelInfosProfessionnellesCard
+                :agent-id="agent.id"
+                :infos="agent.informations_professionnelles"
+                :can-edit="canEdit"
+                @changed="refresh"
+              />
+              <div class="grid gap-6 lg:grid-cols-2">
+                <PersonnelSituationFamilialeCard
+                  :agent-id="agent.id"
+                  :situation="agent.situation_familiale"
+                  :can-edit="canEdit"
+                  @changed="refresh"
+                />
+                <PersonnelContactsUrgenceCard
+                  :agent-id="agent.id"
+                  :contacts="agent.contacts_urgence"
+                  :can-edit="canEdit"
+                  @changed="refresh"
+                />
+              </div>
+            </div>
+
+            <!-- Documents (GED) -->
+            <PersonnelDocumentsCard
+              v-else-if="section === 'documents'"
+              :agent-id="agent.id"
+              :documents="agent.documents"
+              :can-edit="canEdit"
+              @changed="refresh"
+            />
 
             <!-- Carrière -->
             <dl v-else-if="section === 'carriere'" class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
@@ -220,6 +323,8 @@ async function onDelete() {
             </div>
           </div>
         </div>
+
+        <PersonnelArchiverModal v-model:open="archiverOpen" :agent-id="agent.id" @archived="refresh" />
       </div>
     </BaseDataState>
   </BasePanel>

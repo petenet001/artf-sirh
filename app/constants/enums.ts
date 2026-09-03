@@ -89,6 +89,30 @@ export const TYPES_CHANGEMENT_SALAIRE_AGENT = [
   "revalorisation",
 ] as const;
 
+/** App\Enums\StatutDemandeConge — cycle d'une demande de congé (circuit N+1 → RH → DG). */
+export const STATUTS_DEMANDE_CONGE = [
+  "soumise",
+  "validee_n1",
+  "rejetee_n1",
+  "validee_rh",
+  "rejetee_rh",
+  "validee_dg",
+  "rejetee_dg",
+] as const;
+
+/**
+ * Étape de validation en attente sur une demande de congé (champ serveur
+ * `prochaine_etape`). `null` = circuit terminé (validé ou rejeté). **Source de
+ * vérité runtime** du bouton à afficher (ne pas déduire du statut seul).
+ */
+export const ETAPES_CONGE = ["valider-n1", "valider-rh", "valider-dg"] as const;
+
+/** App\Enums\StatutAbsence — cycle d'une absence (circuit unique, pas de N+1/RH/DG). */
+export const STATUTS_ABSENCE = ["en_attente", "validee", "rejetee"] as const;
+
+/** Statut matrimonial (SituationFamiliale\UpsertRequest). */
+export const STATUTS_MATRIMONIAUX = ["celibataire", "marie", "divorce", "veuf", "union_libre"] as const;
+
 /** App\Enums\TypeStage — nature d'une convention de stage. */
 export const TYPES_STAGE = ["academique", "professionnel", "qualification"] as const;
 

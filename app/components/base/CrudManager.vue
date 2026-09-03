@@ -204,6 +204,13 @@ const search = computed<string | undefined>({
               class="w-full"
               @update:model-value="state[field.name] = $event"
             />
+            <UInput
+              v-else-if="field.type === 'date'"
+              type="date"
+              :model-value="asString(state[field.name])"
+              class="w-full"
+              @update:model-value="state[field.name] = $event || undefined"
+            />
             <USwitch
               v-else-if="field.type === 'switch'"
               :model-value="asBool(state[field.name])"

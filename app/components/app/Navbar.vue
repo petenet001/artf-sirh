@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@nuxt/ui";
-import { branding } from "~/constants/branding";
 
 /**
- * Barre de navigation horizontale **sticky**, calée sur la maquette de
- * référence : bande blanche **pleine largeur** (le contenu, lui, est centré),
- * hauteur compacte, bordure basse fine. De gauche à droite : logo + nom de
- * marque, séparateur vertical, onglets = modules autorisés (l'onglet actif est
- * en `primary` et souligné d'un trait épais collé à la bordure basse), puis
- * l'avatar du menu utilisateur poussé à l'extrémité droite. Sur mobile, les
- * onglets passent dans un menu déroulant.
+ * Barre de navigation horizontale **sticky** (remplace la sidebar). Alignée sur
+ * le conteneur centré : marque à gauche, onglets = modules autorisés (soulignés
+ * quand actifs), menu utilisateur à droite. Sur mobile, les onglets passent dans
+ * un menu déroulant.
  */
 const { tabs, active, landing } = useModules();
 
@@ -20,50 +16,48 @@ const mobileItems = computed<DropdownMenuItem[][]>(() => [
     to: m.to,
   })),
 ]);
+
+// Navbar transparente en haut de page, effet « glass » (fond translucide + flou)
+// dès qu'on scrolle. Seuil bas pour un basculement immédiat.
+const scrolled = ref(false);
+function onScroll() {
+  scrolled.value = window.scrollY > 4;
+}
+onMounted(() => {
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+});
+onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 border-b border-default bg-default">
-    <div class="flex h-14 items-center px-4 sm:px-5">
+  <header class="sticky top-0 z-40 border-b transition-colors duration-300" :class="scrolled
+    ? 'border-default bg-default/70 backdrop-blur-md supports-[backdrop-filter]:bg-default/60'
+    : 'border-default/70 bg-white'">
+    <div class="mx-auto flex h-16 max-w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
       <!-- Marque → 1er module autorisé -->
-      <NuxtLink :to="landing" class="flex shrink-0 items-center gap-2">
-        <img :src="branding.logo" :alt="branding.logoAlt" class="size-7 w-auto">
-        <span class="text-base font-semibold tracking-tight text-highlighted">
-          {{ branding.name }}
-        </span>
+      <NuxtLink :to="landing" class="flex shrink-0 items-center gap-2.5">
+        <img src="/logo/Logo_Simple_Couleur.svg" alt="Logo ARTF" class="h-6 w-6" />
+        <span class="text-lg font-bold tracking-tight text-highlighted"> SIRH</span>
       </NuxtLink>
 
-      <!-- Séparateur marque / navigation -->
-      <span v-if="tabs.length" class="mx-4 hidden h-6 w-px bg-border md:block sm:mx-5" />
-
-      <!-- Onglets (desktop) : soulignement collé à la bordure basse -->
-      <nav class="hidden h-full items-stretch gap-7 md:flex">
-        <NuxtLink
-          v-for="m in tabs"
-          :key="m.key"
-          :to="m.to"
-          class="relative flex items-center px-1 text-sm font-medium transition-colors"
-          :class="active?.key === m.key ? 'text-primary' : 'text-muted hover:text-default'"
-        >
+      <!-- Onglets (desktop) -->
+      <nav class="ms-4 hidden h-full items-stretch gap-1 md:flex">
+        <NuxtLink v-for="m in tabs" :key="m.key" :to="m.to"
+          class="relative flex items-center px-3 text-sm font-medium transition-colors"
+          :class="active?.key === m.key ? 'text-highlighted' : 'text-muted hover:text-default'">
           {{ m.label }}
-          <span
-            v-if="active?.key === m.key"
-            class="absolute inset-x-0 -bottom-px h-[3px] bg-primary"
-          />
+          <span v-if="active?.key === m.key" class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
         </NuxtLink>
       </nav>
 
-      <div class="ms-auto flex items-center gap-2">
+      <div class="ms-auto flex items-center gap-1">
         <!-- Onglets (mobile) -->
-        <UDropdownMenu
-          v-if="tabs.length"
-          :items="mobileItems"
-          :content="{ align: 'end' }"
-          class="md:hidden"
-        >
+        <UDropdownMenu v-if="tabs.length" :items="mobileItems" :content="{ align: 'end' }" class="md:hidden">
           <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :label="active?.label" />
         </UDropdownMenu>
 
+        <AppNotificationsBell />
         <AppUserMenu />
       </div>
     </div>

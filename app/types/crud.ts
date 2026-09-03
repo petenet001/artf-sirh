@@ -12,7 +12,7 @@ export interface CrudRepo<T, I> {
 }
 
 /** Type de contrôle de formulaire rendu dynamiquement par `BaseCrudManager`. */
-export type CrudFieldType = "text" | "textarea" | "number" | "switch" | "select";
+export type CrudFieldType = "text" | "textarea" | "number" | "switch" | "select" | "date";
 
 /** Descripteur d'un champ de formulaire CRUD générique. */
 export interface CrudField {

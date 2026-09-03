@@ -13,8 +13,13 @@ const columns: TableColumn<TypeConge>[] = [
 
 const fields: CrudField[] = [
   { name: "nom", label: "Nom" },
-  { name: "jours_max", label: "Jours max", type: "number" },
+  { name: "jours_max", label: "Jours max", type: "number", help: "0 = pas de plafond (ex. maladie)." },
   { name: "description", label: "Description", type: "textarea" },
+  { name: "necessite_n1", label: "Validation supérieur (N+1)", type: "switch" },
+  { name: "necessite_rh", label: "Validation RH", type: "switch" },
+  { name: "necessite_dg", label: "Validation DG", type: "switch" },
+  { name: "debite_solde", label: "Décompte du solde", type: "switch" },
+  { name: "justificatif_requis", label: "Justificatif obligatoire", type: "switch" },
 ];
 </script>
 

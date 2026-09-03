@@ -133,6 +133,31 @@ export const modules: AppModule[] = [
     ],
   },
   {
+    key: "conges",
+    label: "Congés & Absences",
+    description: "Demandes de congé, soldes et absences des agents.",
+    icon: "i-lucide-calendar-days",
+    to: "/conges/demandes",
+    match: ["/conges", "/absences"],
+    // Ouvert à qui consulte les congés OU les absences. Le CTA de création et les
+    // boutons de validation se jouent en plus sur les permissions/rôles (§2c).
+    gate: { anyPermission: ["consulter-conges", "consulter-absences"] },
+    nav: [
+      [
+        { label: "Demandes", icon: "i-lucide-file-text", to: "/conges/demandes" },
+        { label: "Soldes", icon: "i-lucide-wallet", to: "/conges/soldes" },
+        { label: "Absences", icon: "i-lucide-user-x", to: "/conges/absences" },
+        { label: "Paramétrage", icon: "i-lucide-sliders-horizontal", to: "/conges/parametrage" },
+      ],
+    ],
+    navGates: {
+      "/conges/demandes": { anyPermission: ["consulter-conges"] },
+      "/conges/soldes": { anyPermission: ["consulter-conges"] },
+      "/conges/absences": { anyPermission: ["consulter-absences"] },
+      "/conges/parametrage": { anyPermission: ["valider-conges"] },
+    },
+  },
+  {
     key: "remuneration",
     label: "Rémunération",
     description: "Grille salariale et salaires des agents.",

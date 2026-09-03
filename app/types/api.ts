@@ -18,6 +18,25 @@ export interface ApiCollection<T> {
   data: T[];
 }
 
+/**
+ * Métadonnées de pagination. **Exception** au principe « pas de pagination » :
+ * seul l'inbox notifications pagine (volume potentiellement élevé, consommé par
+ * lots dans la cloche). Le reste de l'API reste en collection plate.
+ */
+export interface PaginationMeta {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+}
+
+/** Réponse paginée `{ data, meta, message? }`. `M` étend la meta si besoin. */
+export interface Paginated<T, M extends PaginationMeta = PaginationMeta> {
+  data: T[];
+  meta: M;
+  message?: string;
+}
+
 /** Corps d'erreur renvoyé par le backend (validation 422 incluse). */
 export interface ApiError {
   message: string;

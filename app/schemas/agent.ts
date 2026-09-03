@@ -8,6 +8,11 @@ import { typeIntegrationSchema } from "~/schemas/type-integration";
 import { affectationSchema } from "~/schemas/affectation";
 import { nominationSchema } from "~/schemas/nomination";
 import { contratSchema } from "~/schemas/contrat";
+import { informationsPersonnelleSchema } from "~/schemas/informations-personnelle";
+import { informationsProfessionnelleSchema } from "~/schemas/informations-professionnelle";
+import { situationFamilialeSchema } from "~/schemas/situation-familiale";
+import { contactUrgenceSchema } from "~/schemas/contact-urgence";
+import { documentAgentSchema } from "~/schemas/document-agent";
 import { STATUTS_AGENT } from "~/constants/enums";
 
 /**
@@ -26,6 +31,9 @@ export const agentSchema = personneSchema.extend({
   rib_bancaire: z.string().nullable().optional(),
   statut: z.enum(STATUTS_AGENT).default("actif"),
   date_prise_service: z.string().nullable().optional(),
+  // Archivage (vie courante) : posés à l'archivage, remis à null au désarchivage.
+  archived_at: z.string().nullable().optional(),
+  motif_archivage: z.string().nullable().optional(),
 
   grade_id: z.number().nullable().optional(),
   grade: gradeSchema.optional(),
@@ -42,11 +50,26 @@ export const agentSchema = personneSchema.extend({
   nomination_active: nominationSchema.optional(),
   contrat_actif: contratSchema.optional(),
 
+  // Vie courante — chargées uniquement sur la fiche personnel
+  // (`GET /personnel/agents/{id}`). `null` = renseignable mais encore vide.
+  informations_personnelles: informationsPersonnelleSchema.nullable().optional(),
+  informations_professionnelles: informationsProfessionnelleSchema.nullable().optional(),
+  situation_familiale: situationFamilialeSchema.nullable().optional(),
+  contacts_urgence: z.array(contactUrgenceSchema).optional(),
+  documents: z.array(documentAgentSchema).optional(),
+
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
 
 export type Agent = z.infer<typeof agentSchema>;
+
+/** Payload d'archivage d'un agent (Agent\ArchiverRequest) : motif requis. */
+export const agentArchiverSchema = z.object({
+  motif: z.string().min(3, "Motif requis (3 caractères min.)"),
+});
+
+export type AgentArchiverInput = z.infer<typeof agentArchiverSchema>;
 
 /**
  * Payload de création d'un agent (Agent\CreateRequest). Le matricule, le

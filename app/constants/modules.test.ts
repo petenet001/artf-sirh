@@ -51,9 +51,11 @@ const navTo = (ctx: AccessContext) => visibleNav(accueil, ctx).flat().map((i) =>
 const keys = (ctx: AccessContext) => accessibleModules(ctx).map((m) => m.key);
 
 describe("accès aux modules par rôle", () => {
-  it("agent simple : uniquement le module d'accueil, atterrit sur /mon-espace", () => {
+  it("agent simple : accueil + congés/absences (self-service), atterrit sur /mon-espace", () => {
     const ctx = ctxForRole("agent");
-    expect(keys(ctx)).toEqual(["tableau-de-bord"]);
+    // L'agent a `consulter-conges`/`consulter-absences` (seeder) → le module
+    // Congés lui est ouvert pour ses propres demandes. Pas d'autre module métier.
+    expect(keys(ctx)).toEqual(["tableau-de-bord", "conges"]);
     expect(landingRoute(ctx)).toBe("/mon-espace");
   });
 

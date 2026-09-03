@@ -39,4 +39,24 @@ describe("typeCongeSchema", () => {
   it("typeCongeInputSchema rejette un jours_max négatif", () => {
     expect(() => typeCongeInputSchema.parse({ nom: "X", jours_max: -1 })).toThrow();
   });
+
+  it("expose les flags de circuit (necessite_*, debite_solde, justificatif_requis)", () => {
+    const parsed = typeCongeSchema.parse({
+      ...valid,
+      necessite_n1: true,
+      necessite_rh: true,
+      necessite_dg: false,
+      debite_solde: true,
+      justificatif_requis: false,
+    });
+    expect(parsed.necessite_n1).toBe(true);
+    expect(parsed.debite_solde).toBe(true);
+    expect(parsed.justificatif_requis).toBe(false);
+  });
+
+  it("typeCongeInputSchema accepte les flags booléens", () => {
+    const parsed = typeCongeInputSchema.parse({ nom: "Sans solde", necessite_dg: true, debite_solde: false });
+    expect(parsed.necessite_dg).toBe(true);
+    expect(parsed.debite_solde).toBe(false);
+  });
 });
