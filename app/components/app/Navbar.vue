@@ -38,20 +38,20 @@ onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
       <!-- Marque → 1er module autorisé -->
       <NuxtLink :to="landing" class="flex shrink-0 items-center gap-2.5">
         <img src="/logo/Logo_Simple_Couleur.svg" alt="Logo ARTF" class="h-6 w-6" />
-        <span class="text-lg font-bold tracking-tight text-highlighted"> SIRH</span>
+        <span class="text-lg font-bold tracking-tight text-blue-950"> SIRH</span>
       </NuxtLink>
 
       <!-- Onglets (desktop) -->
       <nav class="ms-4 hidden h-full items-stretch gap-1 md:flex">
         <NuxtLink v-for="m in tabs" :key="m.key" :to="m.to"
-          class="relative flex items-center px-3 text-sm font-medium transition-colors"
+          class="relative flex items-center px-3 text-sm font-medium transition-colors "
           :class="active?.key === m.key ? 'text-highlighted' : 'text-muted hover:text-default'">
           {{ m.label }}
           <span v-if="active?.key === m.key" class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
         </NuxtLink>
       </nav>
 
-      <div class="ms-auto flex items-center gap-1">
+      <div class="ms-auto flex items-center gap-4">
         <!-- Onglets (mobile) -->
         <UDropdownMenu v-if="tabs.length" :items="mobileItems" :content="{ align: 'end' }" class="md:hidden">
           <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :label="active?.label" />

@@ -116,11 +116,14 @@ function onError(e: FormErrorEvent) {
 
       <aside v-if="step.illustration || step.icon" class="hidden lg:block">
         <div class="sticky top-24 overflow-hidden rounded-2xl border border-default bg-primary/[0.04] p-8 text-center">
+          <!-- Boîte de hauteur fixe : les dessins n'ont pas tous le même
+               format (portrait/paysage), le panneau ne doit pas sauter d'une
+               étape à l'autre. -->
           <img
             v-if="step.illustration"
             :src="step.illustration"
             :alt="step.title"
-            class="mx-auto max-h-56 w-full object-contain"
+            class="mx-auto h-56 w-full object-contain"
           >
           <div v-else class="relative mx-auto grid size-40 place-items-center">
             <span class="absolute inset-0 rounded-full bg-primary/5" />

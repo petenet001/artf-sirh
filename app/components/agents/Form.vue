@@ -46,6 +46,13 @@ const { options: echelonOptions } = useResourceOptions("opt-echelons", () => use
 const { options: fonctionOptions } = useResourceOptions("opt-fonctions", () => useFonctionsApi().list());
 const { options: diplomeOptions } = useResourceOptions("opt-diplomes", () => useDiplomesApi().list());
 
+// Carrière déduite du diplôme (cf. `utils/carriere.ts`) : le diplôme pointe une
+// classe de la grille, qui porte le couple catégorie × grade ; l'échelon
+// d'entrée est le 1er. L'API applique déjà cette règle à la création
+// (`AgentService::resoudreInfosDepuisDiplome`) : on la rejoue ici pour que la
+// saisie l'affiche au lieu de la deviner.
+const { deduire } = useCarriereDiplome();
+
 const genreItems: { label: string; value: string }[] = [
   { label: "Masculin", value: "M" },
   { label: "Féminin", value: "F" },
@@ -87,19 +94,48 @@ watch(
   },
 );
 
+// Édition : pas de diplôme au payload (`agentUpdateSchema`), la carrière reste
+// entièrement manuelle. Création : elle est pilotée par le diplôme.
+const carriere = computed(() =>
+  isEdit.value ? null : deduire(state.diplome_id as number | undefined),
+);
+
+/** Un champ n'est verrouillé que si le diplôme a effectivement livré sa valeur. */
+const gradeAuto = computed(() => carriere.value?.gradeId != null);
+const categorieAuto = computed(() => carriere.value?.categorieId != null);
+const echelonAuto = computed(() => carriere.value?.echelonId != null);
+
+/** Diplôme choisi mais sans classe de grille rattachée → saisie manuelle. */
+const diplomeSansGrille = computed(
+  () => !isEdit.value && state.diplome_id != null && carriere.value === null,
+);
+
+// Le choix du diplôme (re)pose la carrière. On n'écrase que ce qui est connu.
+watch(
+  carriere,
+  (c) => {
+    if (!c) return;
+    if (c.gradeId != null) state.grade_id = c.gradeId;
+    if (c.categorieId != null) state.categorie_id = c.categorieId;
+    if (c.echelonId != null) state.echelon_id = c.echelonId;
+  },
+  { immediate: true },
+);
+
 const formSchema = computed(
   () => (isEdit.value ? agentUpdateSchema : agentInputSchema) as unknown as ZodType<Record<string, unknown>>,
 );
 
 // Étapes du stepper (les `fields` sont validés avant de passer à la suivante).
-// `description` + `icon` alimentent l'illustration de droite ; y ajouter
-// `illustration: "/illustrations/<nom>.svg"` remplace le visuel par un dessin.
+// `illustration` + `description` alimentent la colonne de droite : un dessin
+// par section (`public/illustrations/`), l'`icon` restant pour l'onglet.
 const steps = computed<StepperStep[]>(() => [
   {
     key: "identite",
     title: "Identité",
     description: "Qui est la personne : état civil et naissance.",
     icon: "i-lucide-user",
+    illustration: "/illustrations/identite.svg",
     fields: ["nom", "prenom", "date_naissance", "genre", "lieu_naissance", "nationalite"],
   },
   {
@@ -107,16 +143,20 @@ const steps = computed<StepperStep[]>(() => [
     title: "Coordonnées",
     description: "Comment la joindre, et ses références administratives.",
     icon: "i-lucide-contact",
+    illustration: "/illustrations/coordonnees.svg",
     fields: ["telephone", "email_personnel", "numero_cnss", "rib_bancaire"],
   },
   {
     key: "carriere",
     title: "Carrière",
-    description: "Sa place dans la grille : grade, catégorie, échelon, fonction.",
+    description: isEdit.value
+      ? "Sa place dans la grille : grade, catégorie, échelon, fonction."
+      : "Le diplôme fixe la grille (catégorie, grade, échelon). Reste la fonction.",
     icon: "i-lucide-briefcase",
+    illustration: "/illustrations/carriere.svg",
     fields: isEdit.value
       ? ["grade_id", "categorie_id", "echelon_id", "fonction_id", "statut"]
-      : ["grade_id", "categorie_id", "echelon_id", "fonction_id", "type_integration_id", "diplome_id"],
+      : ["diplome_id", "grade_id", "categorie_id", "echelon_id", "fonction_id", "type_integration_id"],
   },
 ]);
 
@@ -236,21 +276,32 @@ function onCancel() {
     <!-- Étape 3 : Carrière -->
     <template #carriere>
       <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Grade" name="grade_id">
-          <USelectMenu value-key="value" :model-value="asNumber(state.grade_id)" :items="gradeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.grade_id = $event" />
+        <!-- Le diplôme commande la carrière : il vient donc en premier, et sur
+             toute la largeur. Sa classe de grille porte catégorie et grade ;
+             l'échelon d'entrée est le 1er. -->
+        <UFormField
+          v-if="!isEdit"
+          class="sm:col-span-2"
+          label="Diplôme"
+          name="diplome_id"
+          :help="diplomeSansGrille
+            ? 'Ce diplôme n’est rattaché à aucune classe de la grille : renseignez la carrière à la main.'
+            : 'Détermine la catégorie, le grade et l’échelon d’entrée.'"
+        >
+          <USelectMenu value-key="value" :model-value="asNumber(state.diplome_id)" :items="diplomeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.diplome_id = $event" />
         </UFormField>
-        <UFormField label="Catégorie" name="categorie_id">
-          <USelectMenu value-key="value" :model-value="asNumber(state.categorie_id)" :items="categorieOptions" placeholder="Choisir" class="w-full" @update:model-value="state.categorie_id = $event" />
+
+        <UFormField label="Grade" name="grade_id" :help="gradeAuto ? 'Déduit du diplôme' : undefined">
+          <USelectMenu value-key="value" :disabled="gradeAuto" :model-value="asNumber(state.grade_id)" :items="gradeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.grade_id = $event" />
         </UFormField>
-        <UFormField label="Échelon" name="echelon_id">
-          <USelectMenu value-key="value" :model-value="asNumber(state.echelon_id)" :items="echelonOptions" placeholder="Choisir" class="w-full" @update:model-value="state.echelon_id = $event" />
+        <UFormField label="Catégorie" name="categorie_id" :help="categorieAuto ? 'Déduite du diplôme' : undefined">
+          <USelectMenu value-key="value" :disabled="categorieAuto" :model-value="asNumber(state.categorie_id)" :items="categorieOptions" placeholder="Choisir" class="w-full" @update:model-value="state.categorie_id = $event" />
+        </UFormField>
+        <UFormField label="Échelon" name="echelon_id" :help="echelonAuto ? 'Échelon d’entrée' : undefined">
+          <USelectMenu value-key="value" :disabled="echelonAuto" :model-value="asNumber(state.echelon_id)" :items="echelonOptions" placeholder="Choisir" class="w-full" @update:model-value="state.echelon_id = $event" />
         </UFormField>
         <UFormField label="Fonction" name="fonction_id">
           <USelectMenu value-key="value" :model-value="asNumber(state.fonction_id)" :items="fonctionOptions" placeholder="Choisir" class="w-full" @update:model-value="state.fonction_id = $event" />
-        </UFormField>
-
-        <UFormField v-if="!isEdit" label="Diplôme" name="diplome_id">
-          <USelectMenu value-key="value" :model-value="asNumber(state.diplome_id)" :items="diplomeOptions" placeholder="Choisir" class="w-full" @update:model-value="state.diplome_id = $event" />
         </UFormField>
 
         <UFormField v-if="isEdit" label="Statut" name="statut" required>

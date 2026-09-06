@@ -50,7 +50,7 @@ async function toutMarquer() {
       <UButton
         icon="i-lucide-bell"
         color="neutral"
-        variant="ghost"
+        variant="outline"
         :aria-label="nonLues > 0 ? `Notifications (${nonLues} non lues)` : 'Notifications'"
       />
     </UChip>
