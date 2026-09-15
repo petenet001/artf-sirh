@@ -10,7 +10,9 @@ export function useResourceOptions<T extends { id: number; nom?: string }>(
   list: () => Promise<ApiCollection<T>>,
   getLabel?: (item: T) => string,
 ) {
-  const { data, pending, error } = useAsyncData(key, () => list());
+  // `list` est passé tel quel : réenvelopper dans une closure créerait un
+  // handler différent à chaque appel, et Nuxt le signalerait sur une clé partagée.
+  const { data, pending, error } = useAsyncData(key, list);
   const items = computed(() => data.value?.data ?? []);
 
   const label = (it: T) => getLabel?.(it) ?? it.nom ?? `#${it.id}`;
@@ -21,5 +23,5 @@ export function useResourceOptions<T extends { id: number; nom?: string }>(
     Object.fromEntries(items.value.map((it) => [it.id, label(it)])),
   );
 
-  return { options, labelById, pending, error };
+  return { items, options, labelById, pending, error };
 }

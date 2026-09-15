@@ -38,10 +38,11 @@ export function useDashboardStats() {
       ? agentList.filter((a) => a.type_integration_id !== stageTypeId).length
       : agentList.length;
 
+    // Ordre de l'enum, statuts absents de l'effectif masqués (10 positions CCN).
     const parStatut = STATUTS_AGENT.map((statut) => ({
       statut,
       count: agentList.filter((a) => a.statut === statut).length,
-    }));
+    })).filter((row) => row.count > 0);
 
     return {
       counts: {

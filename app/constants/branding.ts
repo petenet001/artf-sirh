@@ -16,8 +16,10 @@ export const branding = {
     "Gérez le personnel, les structures organisationnelles et l'intégration administrative de l'ARTF, en un seul endroit.",
   /** Mention de bas de page du panneau de marque. */
   copyright: "© ARTF — Tous droits réservés",
-  /** Logo de la navbar (fichier servi depuis `public/`). */
+  /** Logo couleur, pour les fonds clairs (fichier servi depuis `public/`). */
   logo: "/logo/Logo_Simple_Couleur.svg",
+  /** Logo blanc, pour les fonds sombres (panneau de marque du login). */
+  logoInverted: "/logo/Logo_Simple_Blanc.svg",
   /** Texte alternatif du logo. */
   logoAlt: "ARTF",
 } as const;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from "@nuxt/ui";
 import type { Agent } from "~/schemas/agent";
+import { statutAgentLabel } from "~/constants/personnel";
 
 const { stats, pending, error } = useDashboardStats();
 
@@ -18,13 +19,6 @@ const cards = computed(() => {
 const maxStatut = computed(() =>
   Math.max(1, ...(stats.value?.parStatut.map((s) => s.count) ?? [1])),
 );
-
-const statutColor: Record<string, "primary" | "warning" | "neutral" | "error"> = {
-  actif: "primary",
-  suspendu: "warning",
-  retraite: "neutral",
-  inactif: "error",
-};
 
 const recentColumns: TableColumn<Agent>[] = [
   { accessorKey: "matricule", header: "Matricule" },
@@ -62,7 +56,7 @@ const recentColumns: TableColumn<Agent>[] = [
             <div class="space-y-3">
               <div v-for="row in stats?.parStatut ?? []" :key="row.statut">
                 <div class="flex items-center justify-between text-sm mb-1">
-                  <span class="capitalize text-toned">{{ row.statut }}</span>
+                  <span class="text-toned">{{ statutAgentLabel(row.statut) }}</span>
                   <span class="font-medium text-highlighted">{{ row.count }}</span>
                 </div>
                 <div class="h-2 rounded-full bg-elevated overflow-hidden">
@@ -87,9 +81,7 @@ const recentColumns: TableColumn<Agent>[] = [
             </template>
             <BaseTable :data="stats?.recents ?? []" :columns="recentColumns" :bordered="false">
               <template #statut-cell="{ row }">
-                <UBadge :color="statutColor[row!.original.statut] ?? 'neutral'" variant="subtle" class="capitalize">
-                  {{ row!.original.statut }}
-                </UBadge>
+                <AgentsStatutBadge :statut="row!.original.statut" />
               </template>
             </BaseTable>
           </UCard>

@@ -19,7 +19,7 @@ import { branding } from "~/constants/branding";
          `bg-primary` = bleu ARTF, `bg-secondary` = rouge ARTF. -->
     <div class="relative hidden overflow-hidden bg-primary p-12 text-inverted lg:flex lg:flex-col lg:justify-between">
       <div class="relative z-10 flex items-center gap-2 text-lg font-semibold">
-        <UIcon name="i-lucide-building-2" class="size-6" />
+        <img :src="branding.logoInverted" :alt="branding.logoAlt" class="size-6">
         <span>{{ branding.shortName }}</span>
       </div>
 

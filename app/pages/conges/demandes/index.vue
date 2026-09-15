@@ -5,20 +5,23 @@ import { STATUTS_DEMANDE_CONGE } from "~/constants/enums";
 import { agentNom, STATUT_DEMANDE_LABEL, type EtapeConge } from "~/constants/conges";
 
 /**
- * Liste des demandes de congé. Portée « Mes demandes » (agent connecté) vs
- * « Toutes » (RH / valideurs) ; filtre statut client sur la collection reçue.
- * Une ligne mène au détail (circuit + actions).
+ * Liste des demandes de congé. Portées : « Mes demandes » (agent connecté),
+ * « À valider » (file du signataire, calculée par l'API) et « Toutes » (RH /
+ * valideurs) ; filtre statut client sur la collection reçue. Une ligne mène au
+ * détail (circuit + actions).
  */
 const auth = useAuthStore();
 const { demandes, scope, pending, error, refresh } = useDemandesConge();
 
-const peutVoirToutes = computed(() => auth.can("valider-conges") || auth.hasRole("rh") || auth.hasRole("admin"));
+const peutValider = computed(() => auth.can("valider-conges"));
+const peutVoirToutes = computed(() => peutValider.value || auth.hasRole("rh") || auth.hasRole("admin"));
 const peutCreer = computed(() => auth.can("creer-conges"));
 
-const scopeItems = [
-  { label: "Mes demandes", value: "mine" as const },
-  { label: "Toutes les demandes", value: "all" as const },
-];
+const scopeItems = computed(() => [
+  ...(auth.user?.agent_id ? [{ label: "Mes demandes", value: "mine" as const }] : []),
+  ...(peutValider.value ? [{ label: "À valider", value: "a_valider" as const }] : []),
+  ...(peutVoirToutes.value ? [{ label: "Toutes les demandes", value: "all" as const }] : []),
+]);
 
 const ALL = "__all__";
 const statutItems = [
@@ -53,7 +56,9 @@ const columns: TableColumn<DemandeConge>[] = [
 
 <template>
   <BasePanel title="Demandes de congé" subtitle="Suivi et validation des demandes">
-    <BaseDataState :pending="pending" :error="error" :empty="!demandes.length" empty-label="Aucune demande">
+    <!-- Pas d'état « vide » global : la table reste visible pour garder le
+         sélecteur de portée et le bouton de création. -->
+    <BaseDataState :pending="pending" :error="error">
       <BaseTable
         :data="rows"
         :columns="columns"
@@ -63,11 +68,16 @@ const columns: TableColumn<DemandeConge>[] = [
         :row-to="(d) => `/conges/demandes/${d.id}`"
       >
         <template #filters>
-          <USelect v-if="peutVoirToutes" v-model="scope" :items="scopeItems" value-key="value" class="w-48" />
+          <USelect v-if="scopeItems.length > 1" v-model="scope" :items="scopeItems" value-key="value" class="w-48" />
           <USelect v-model="statut" :items="statutItems" class="w-48" />
         </template>
         <template #actions>
           <UButton v-if="peutCreer" icon="i-lucide-plus" @click="modalOpen = true">Nouvelle demande</UButton>
+        </template>
+        <template #empty>
+          <p class="py-6 text-center text-sm text-muted">
+            {{ scope === "a_valider" ? "Aucune demande à valider" : "Aucune demande" }}
+          </p>
         </template>
         <template #statut-cell="{ row }">
           <div class="flex items-center gap-2">

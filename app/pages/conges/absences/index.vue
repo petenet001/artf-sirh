@@ -5,9 +5,10 @@ import { STATUTS_ABSENCE } from "~/constants/enums";
 import { agentNom, STATUT_ABSENCE_LABEL } from "~/constants/conges";
 
 /**
- * Absences des agents. Portée « Mes absences » vs « Toutes » ; déclaration
- * (create) et validation en ligne (valider / rejeter) pour qui a le droit.
- * Circuit unique : pas de N+1/RH/DG.
+ * Absences des agents. Portées « Mes absences », « À valider » (file N+1
+ * calculée par l'API) et « Toutes » ; déclaration (create). Valider / rejeter
+ * ne se proposent **que dans la file** : seul le N+1 réel de l'agent (ou
+ * `admin`) peut signer — un RH avec `valider-absences` reçoit 403 ailleurs.
  */
 const auth = useAuthStore();
 const absencesApi = useAbsencesApi();
@@ -17,12 +18,17 @@ const { absences, scope, pending, error, refresh } = useAbsences();
 
 const peutValider = computed(() => auth.can("valider-absences") || auth.hasRole("admin"));
 const peutCreer = computed(() => auth.can("creer-absences"));
-const peutVoirToutes = computed(() => peutValider.value);
+const actionsVisibles = computed(() => scope.value === "a_valider");
 
-const scopeItems = [
-  { label: "Mes absences", value: "mine" as const },
-  { label: "Toutes les absences", value: "all" as const },
-];
+const scopeItems = computed(() => [
+  ...(auth.user?.agent_id ? [{ label: "Mes absences", value: "mine" as const }] : []),
+  ...(peutValider.value
+    ? [
+        { label: "À valider", value: "a_valider" as const },
+        { label: "Toutes les absences", value: "all" as const },
+      ]
+    : []),
+]);
 
 const ALL = "__all__";
 const statutItems = [
@@ -45,7 +51,7 @@ const columns = computed<TableColumn<Absence>[]>(() => {
     { id: "justifiee", header: "Justifiée" },
     { id: "statut", header: "Statut" },
   ];
-  return peutValider.value ? [...base, { id: "actions", header: "" }] : base;
+  return actionsVisibles.value ? [...base, { id: "actions", header: "" }] : base;
 });
 
 // — Actions ————————————————————————————————————————————————————
@@ -95,14 +101,20 @@ async function confirmerRejet() {
 
 <template>
   <BasePanel title="Absences" subtitle="Déclarations et validation des absences">
-    <BaseDataState :pending="pending" :error="error" :empty="!absences.length" empty-label="Aucune absence">
+    <!-- Pas d'état « vide » global : la table garde portée et bouton de déclaration. -->
+    <BaseDataState :pending="pending" :error="error">
       <BaseTable :data="rows" :columns="columns" searchable search-placeholder="Rechercher un agent…" :page-size="10">
         <template #filters>
-          <USelect v-if="peutVoirToutes" v-model="scope" :items="scopeItems" value-key="value" class="w-44" />
+          <USelect v-if="scopeItems.length > 1" v-model="scope" :items="scopeItems" value-key="value" class="w-44" />
           <USelect v-model="statut" :items="statutItems" class="w-44" />
         </template>
         <template #actions>
           <UButton v-if="peutCreer" icon="i-lucide-plus" @click="modalOpen = true">Déclarer une absence</UButton>
+        </template>
+        <template #empty>
+          <p class="py-6 text-center text-sm text-muted">
+            {{ scope === "a_valider" ? "Aucune absence à valider" : "Aucune absence" }}
+          </p>
         </template>
         <template #justifiee-cell="{ row }">
           <UIcon

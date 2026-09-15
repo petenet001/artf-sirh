@@ -66,9 +66,13 @@ export default defineNuxtConfig({
   nitro: {
     devProxy: {
       "/api": {
-        // API distante. Pour travailler contre un backend Laravel local
-        // (`php artisan serve`), remplacer par `http://127.0.0.1:8000/api`.
-        target: "http://artfrh.sc1difl4205.universe.wf/api",
+        // API distante par défaut. `API_PROXY_TARGET=http://127.0.0.1:8000/api`
+        // (dans `.env`) relaie vers le backend Laravel local : c'est ce qui
+        // permet d'exposer l'app sur le réseau (`npm run dev:host`) sans
+        // exposer Laravel, les autres postes ne parlant qu'au serveur Nuxt.
+        target:
+          process.env.API_PROXY_TARGET ??
+          "http://artfrh.sc1difl4205.universe.wf/api",
         changeOrigin: true,
         // L'hébergement o2switch (« Tiger Protect ») renvoie un challenge 307
         // aux requêtes dont le User-Agent ressemble à un navigateur. Comme le

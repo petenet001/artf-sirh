@@ -48,8 +48,38 @@ export const TYPES_ACTE_ADMINISTRATIF = [
   "note_de_service",
 ] as const;
 
-/** Statut d'un agent (Agent/UpdateRequest + migration `add_stagiaire_to_agents_statut`). */
-export const STATUTS_AGENT = ["actif", "inactif", "suspendu", "retraite", "stagiaire"] as const;
+/**
+ * App\Enums\StatutAgent — position de l'agent (CCN ARTF art. 76–80). L'API ne
+ * renvoie pas de `statut_label` : libellés et couleurs dans `constants/personnel.ts`.
+ */
+export const STATUTS_AGENT = [
+  "actif",
+  "inactif",
+  "suspendu",
+  "retraite",
+  "stagiaire",
+  "archive",
+  "detachement",
+  "position_exceptionnelle",
+  "disponibilite",
+  "sous_le_drapeau",
+] as const;
+
+/**
+ * StatutAgent::modifiablesParRh() — valeurs acceptées par `PUT
+ * /integration/agents/{id}`. `stagiaire` (module stage) et `archive`
+ * (archiver / désarchiver) ont leur propre parcours : 422 si on les envoie.
+ */
+export const STATUTS_AGENT_MODIFIABLES = [
+  "actif",
+  "inactif",
+  "suspendu",
+  "retraite",
+  "detachement",
+  "position_exceptionnelle",
+  "disponibilite",
+  "sous_le_drapeau",
+] as const;
 
 /**
  * App\Enums\StatutAffectation — cycle de vie d'une affectation (module carrière).
@@ -87,11 +117,17 @@ export const TYPES_CHANGEMENT_SALAIRE_AGENT = [
   "avancement_echelon",
   "correction",
   "revalorisation",
+  // Reclassements CCN art. 73–75 (`/carriere/reclassements`).
+  "reclassement",
+  "hors_classe",
+  "reconversion",
 ] as const;
 
 /** App\Enums\StatutDemandeConge — cycle d'une demande de congé (circuit N+1 → RH → DG). */
 export const STATUTS_DEMANDE_CONGE = [
   "soumise",
+  // Retirée par le demandeur tant qu'elle était `soumise` (POST …/annuler).
+  "annulee",
   "validee_n1",
   "rejetee_n1",
   "validee_rh",

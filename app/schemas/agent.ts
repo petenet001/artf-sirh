@@ -13,7 +13,7 @@ import { informationsProfessionnelleSchema } from "~/schemas/informations-profes
 import { situationFamilialeSchema } from "~/schemas/situation-familiale";
 import { contactUrgenceSchema } from "~/schemas/contact-urgence";
 import { documentAgentSchema } from "~/schemas/document-agent";
-import { STATUTS_AGENT } from "~/constants/enums";
+import { STATUTS_AGENT, STATUTS_AGENT_MODIFIABLES } from "~/constants/enums";
 
 /**
  * Agent = personne titulaire d'un poste. Étend le socle `personne` avec les
@@ -99,7 +99,8 @@ export type AgentInput = z.infer<typeof agentInputSchema>;
 /**
  * Payload d'édition d'un agent (Agent\UpdateRequest). À la différence de la
  * création, le backend n'accepte ni `type_integration_id` ni `diplome_id`,
- * mais accepte le `statut`.
+ * mais accepte le `statut` — `sometimes`, et seulement parmi les statuts
+ * modifiables (`stagiaire` / `archive` → 422) : on l'omet s'il ne l'est pas.
  */
 export const agentUpdateSchema = z.object({
   nom: z.string().min(1),
@@ -116,7 +117,7 @@ export const agentUpdateSchema = z.object({
   categorie_id: z.number().nullish(),
   echelon_id: z.number().nullish(),
   fonction_id: z.number().nullish(),
-  statut: z.enum(STATUTS_AGENT),
+  statut: z.enum(STATUTS_AGENT_MODIFIABLES).optional(),
 });
 
 export type AgentUpdateInput = z.infer<typeof agentUpdateSchema>;

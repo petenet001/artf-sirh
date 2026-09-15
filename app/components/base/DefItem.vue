@@ -2,7 +2,8 @@
 /**
  * Couple label / valeur des fiches, calé sur la maquette : libellé discret
  * au-dessus, valeur en dessous, séparateur fin en bas. Affiche « — » quand la
- * valeur est absente. À empiler dans une grille `<dl>` à deux colonnes.
+ * valeur est absente. À empiler dans une grille `<dl>` à deux colonnes. Le
+ * slot par défaut remplace la valeur textuelle (lien, bouton de téléchargement).
  */
 withDefaults(
   defineProps<{
@@ -18,6 +19,6 @@ withDefaults(
 <template>
   <div :class="!flush && 'border-b border-default pb-3'">
     <dt class="text-sm text-muted">{{ label }}</dt>
-    <dd class="mt-1 text-sm font-medium text-highlighted">{{ value ?? "—" }}</dd>
+    <dd class="mt-1 text-sm font-medium text-highlighted"><slot>{{ value ?? "—" }}</slot></dd>
   </div>
 </template>

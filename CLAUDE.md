@@ -154,24 +154,60 @@ npm run build          # build production
 
 Variable d'environnement requise : `NUXT_PUBLIC_API_BASE` (voir `.env.example`).
 
-### Connexion à l'API en dev : proxy Nitro (contournement CORS + Tiger Protect)
+### Connexion à l'API en dev : backend local (défaut)
 
-L'API distante est sur un autre domaine → un appel direct depuis `localhost`
-déclenche le **CORS**. On passe donc par un **proxy de dev Nitro** :
+**Par défaut on développe contre le backend Laravel local**, dans
+`../project-api-rh-artf` :
 
-- `NUXT_PUBLIC_API_BASE=/api` (dans `.env`) → le navigateur appelle en
-  **same-origin** `http://localhost:3000/api/...`.
-- `nuxt.config.ts` → `nitro.devProxy["/api"]` relaie vers l'API distante. On
-  utilise `devProxy` (moteur **httpxy** / http natif) et **non** `routeRules.proxy`
-  (moteur **undici**), qui échoue en `502` face à l'hébergement o2switch.
-- L'hébergement o2switch (« **Tiger Protect** ») renvoie un challenge `307` aux
-  requêtes dont le `User-Agent` ressemble à un navigateur. Le proxy **écrase le
-  `user-agent`** par une valeur neutre pour laisser passer l'appel serveur→serveur.
+```bash
+cd ../project-api-rh-artf && php artisan serve   # http://127.0.0.1:8000
+```
 
-> ⚠️ **Prod** : ces réglages sont **dev-only**. En production, le navigateur
-> appellera l'API directement (vrai UA) → Tiger Protect bloquera **chaque
-> utilisateur**. Il faut **désactiver Tiger Protect** sur l'API (cPanel o2switch)
-> et définir `NUXT_PUBLIC_API_BASE` sur l'URL réelle de l'API (CORS déjà en `*`).
+- `.env` → `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api`. Appel **direct**,
+  sans proxy : le CORS de l'API est ouvert (`*`), préflight compris.
+- Base **SQLite** (`database/database.sqlite`). Première mise en route :
+  `php artisan migrate --seed`. Comptes livrés par `UserSeeder` :
+  `admin@arft.cg` / `Admin@2026` (admin) et `rh@arft.cg` / `Rh@2026` (rh).
+- Une requête sans `Accept: application/json` sur une route protégée sort en
+  `500` (« Route [login] not defined ») au lieu d'un `401` — c'est un artefact
+  de curl, `useApiClient` envoie toujours l'en-tête.
+
+### Tester depuis le réseau local
+
+`npm run dev:host` (= `nuxt dev --host`) expose l'app sur l'IP du poste
+(`Network: http://192.168.x.x:3000/`). Pour que les autres postes puissent se
+connecter, l'API doit être appelée **via le proxy** et non en direct :
+`.env` → `NUXT_PUBLIC_API_BASE=/api`. Leur navigateur ne parle qu'au serveur
+Nuxt, qui relaie vers la cible du proxy :
+- **API distante** : ne pas définir `API_PROXY_TARGET` (défaut de
+  `nuxt.config.ts`) — vérifié le 2026-09-15, login compris ;
+- **Laravel local** : `API_PROXY_TARGET=http://127.0.0.1:8000/api` (Laravel reste
+  sur `127.0.0.1` ; en appel direct, `127.0.0.1` désignerait *leur* machine).
+
+Autoriser `node` dans le pare-feu macOS au premier lancement.
+
+### API distante : Tiger Protect (WAF o2switch)
+
+Tiger Protect renvoie un challenge (`307`, ou `503` + page « Test de sécurité »,
+en-tête `tiger-protect-security`) aux requêtes au **User-Agent de navigateur**,
+POST en particulier. D'où le **proxy Nitro qui écrase le `user-agent`**
+(`nitro.devProxy`) : au 2026-09-15, `POST /login` avec l'UA navigateur → `307`,
+avec l'UA du proxy → réponse Laravel. L'API distante n'est donc utilisable
+qu'avec `NUXT_PUBLIC_API_BASE=/api`, jamais en appel direct depuis le navigateur.
+
+- Le comportement du WAF a déjà changé (il a bloqué tous les POST quel que soit
+  l'UA) : si le login repart en `503`, repasser sur le backend local.
+- Le WAF est **en amont** de l'hébergement : rien dans le compte ne peut le
+  désactiver (ni `.htaccess`, ni conf, ni terminal cPanel). Le réglage est dans
+  cPanel → *Outils Exclusifs* → **Tiger Protect** (offres Grow / Cloud / Pro),
+  sinon ticket au support.
+- Dépannage en lecture seule si les POST sont bloqués : émettre un token côté
+  serveur (`php artisan tinker` → `createToken`), le poser dans le cookie
+  `auth.token`, puis ouvrir `/profil` (qui appelle `fetchSession()`).
+
+> **Prod** : pas de `devProxy` en production. Tiger Protect **doit** être
+> désactivé sur l'API avant mise en ligne, sinon chaque navigateur sera
+> challengé au login. Définir alors `NUXT_PUBLIC_API_BASE` sur l'URL réelle.
 
 Après toute modif de `.env` ou `nuxt.config.ts` : **relancer** `npm run dev` et
 recharger en dur le navigateur (`Ctrl+Shift+R`) — lus uniquement au démarrage.

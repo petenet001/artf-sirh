@@ -38,6 +38,25 @@ describe("demandeCongeSchema", () => {
     expect(parsed.justificatif?.nom).toBe("certificat.pdf");
   });
 
+  it("accepte le justificatif avec son url de téléchargement", () => {
+    const parsed = demandeCongeSchema.parse({
+      ...valid,
+      justificatif: { nom: "certificat.pdf", url: "/api/conges/demandes/1/justificatif" },
+    });
+    expect(parsed.justificatif?.url).toBe("/api/conges/demandes/1/justificatif");
+  });
+
+  it("accepte le statut annulee (retrait par le demandeur)", () => {
+    const parsed = demandeCongeSchema.parse({ ...valid, statut: "annulee", prochaine_etape: null });
+    expect(parsed.statut).toBe("annulee");
+  });
+
+  it("accepte le bloc agent léger des listes (ou null)", () => {
+    const agent = { id: 12, matricule: null, nom: "Agent", prenom: "Jean", nom_complet: "Jean Agent" };
+    expect(demandeCongeSchema.parse({ ...valid, agent }).agent?.nom_complet).toBe("Jean Agent");
+    expect(demandeCongeSchema.parse({ ...valid, agent: null }).agent).toBeNull();
+  });
+
   it("rejette un statut hors enum", () => {
     expect(() => demandeCongeSchema.parse({ ...valid, statut: "brouillon" })).toThrow();
   });

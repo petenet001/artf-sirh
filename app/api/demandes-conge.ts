@@ -36,7 +36,9 @@ function buildBody(payload: DemandeCongeInput, justificatif?: File | null): Form
  * (`consulter-conges`, `creer-conges`, `valider-conges`). Toutes throwent.
  *
  * ⚠️ Les boutons de validation dépendent de `prochaine_etape` (source serveur) et
- * du signataire réel (N+1 / rôle RH / rôle DG) — l'API renvoie 403 sinon.
+ * du signataire réel (N+1 / rôle RH / rôle DG) — l'API renvoie 403 sinon. La
+ * file `aValider()` applique exactement cette règle : c'est elle qui dit si
+ * l'utilisateur peut signer une demande.
  */
 export function useDemandesCongeApi() {
   const api = useApiClient();
@@ -47,6 +49,12 @@ export function useDemandesCongeApi() {
 
     byAgent: (agentId: number, params?: ListParams) =>
       api<ApiCollection<DemandeConge>>(`/conges/agents/${agentId}/demandes`, { query: params }),
+
+    /**
+     * File du signataire connecté : demandes dont l'étape courante lui revient
+     * (N+1 réel, rôle `rh`, rôle `directeur-general` ; `admin` voit tout).
+     */
+    aValider: () => api<ApiCollection<DemandeConge>>("/conges/demandes/a-valider"),
 
     getById: (id: number) => api<ApiResponse<DemandeConge>>(`/conges/demandes/${id}`),
 
@@ -69,6 +77,14 @@ export function useDemandesCongeApi() {
       api<ApiResponse<DemandeConge>>(`/conges/demandes/${id}/rejeter-rh`, { method: "POST", body: payload }),
     rejeterDG: (id: number, payload: RejetCongeInput) =>
       api<ApiResponse<DemandeConge>>(`/conges/demandes/${id}/rejeter-dg`, { method: "POST", body: payload }),
+
+    /** Retrait par le demandeur (ou `created_by` / admin), tant que `soumise` — sinon 422. */
+    annuler: (id: number) =>
+      api<ApiResponse<DemandeConge>>(`/conges/demandes/${id}/annuler`, { method: "POST", body: {} }),
+
+    /** Justificatif déposé à la soumission. Blob (404 si aucun fichier). */
+    justificatif: (id: number) =>
+      api<Blob>(`/conges/demandes/${id}/justificatif`, { responseType: "blob" }),
 
     statistiques: () => api<ApiResponse<CongeStatistiques>>("/conges/statistiques"),
 

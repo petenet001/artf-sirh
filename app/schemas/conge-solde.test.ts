@@ -10,6 +10,11 @@ describe("congeSoldeSchema", () => {
     expect(parsed.annee).toBe(2026);
   });
 
+  it("expose le bonus d'ancienneté inclus dans le solde initial", () => {
+    const parsed = congeSoldeSchema.parse({ ...valid, solde_initial: 36, jours_anciennete: 6 });
+    expect(parsed.jours_anciennete).toBe(6);
+  });
+
   it("rejette un solde_actuel non numérique", () => {
     expect(() => congeSoldeSchema.parse({ ...valid, solde_actuel: "27" })).toThrow();
   });

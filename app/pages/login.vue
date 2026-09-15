@@ -33,9 +33,9 @@ async function onSubmit(event: FormSubmitEvent<LoginInput>) {
 
 <template>
   <div class="space-y-8">
-    <div class="flex items-center gap-2 lg:hidden">
-      <UIcon name="i-lucide-building-2" class="size-6 text-primary" />
-      <span class="font-semibold text-highlighted">{{ branding.name }}</span>
+    <div class="flex items-center gap-2 ">
+      <img :src="branding.logo" :alt="branding.logoAlt" class="size-20">
+      <span class="font-semibold text-highlighted lg:hidden">{{ branding.name }}</span>
     </div>
 
     <div>

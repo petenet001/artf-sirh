@@ -15,15 +15,6 @@ import type { AgentSummary } from "~/schemas/agent-summary";
 defineProps<{ agents: AgentSummary[] }>();
 
 const columns: TableColumn<AgentSummary>[] = [...agentColumns, { id: "actions", header: "" }];
-
-/** Couleur de la pastille de statut (pastilles claires de la maquette). */
-const statutColor: Record<string, "success" | "neutral" | "warning" | "error" | "primary"> = {
-  actif: "success",
-  stagiaire: "primary",
-  inactif: "neutral",
-  suspendu: "warning",
-  retraite: "neutral",
-};
 </script>
 
 <template>
@@ -50,9 +41,7 @@ const statutColor: Record<string, "success" | "neutral" | "warning" | "error" | 
     </template>
 
     <template #statut-cell="{ row }">
-      <UBadge :color="statutColor[row!.original.statut ?? ''] ?? 'neutral'" variant="subtle" class="capitalize">
-        {{ row!.original.statut ?? "—" }}
-      </UBadge>
+      <AgentsStatutBadge :statut="row!.original.statut" />
     </template>
 
     <template #actions-cell="{ row }">

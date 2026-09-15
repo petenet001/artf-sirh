@@ -1,5 +1,6 @@
 import type { STATUTS_DEMANDE_CONGE, STATUTS_ABSENCE, ETAPES_CONGE } from "~/constants/enums";
 import type { BadgeColor } from "~/constants/carriere";
+import type { DemandeConge } from "~/schemas/demande-conge";
 
 // Réutilise le helper d'affichage d'agent (mêmes règles que la carrière).
 export { agentNom } from "~/constants/carriere";
@@ -16,6 +17,7 @@ export type EtapeConge = (typeof ETAPES_CONGE)[number];
  */
 export const STATUT_DEMANDE_COLOR: Record<StatutDemandeConge, BadgeColor> = {
   soumise: "warning",
+  annulee: "neutral",
   validee_n1: "warning",
   rejetee_n1: "error",
   validee_rh: "success",
@@ -27,6 +29,7 @@ export const STATUT_DEMANDE_COLOR: Record<StatutDemandeConge, BadgeColor> = {
 /** Libellé de repli si l'API ne fournit pas `statut_label`. */
 export const STATUT_DEMANDE_LABEL: Record<StatutDemandeConge, string> = {
   soumise: "Soumise",
+  annulee: "Annulée",
   validee_n1: "Validée N+1",
   rejetee_n1: "Rejetée N+1",
   validee_rh: "Validée RH",
@@ -34,6 +37,34 @@ export const STATUT_DEMANDE_LABEL: Record<StatutDemandeConge, string> = {
   validee_dg: "Validée DG",
   rejetee_dg: "Rejetée DG",
 };
+
+/**
+ * Le circuit du type est-il terminé **et accordé** ? Miroir de
+ * `TypeConge::estAccordee()` : le statut attendu est celui de la **dernière**
+ * étape requise — `validee_dg` si le DG signe, sinon `validee_rh`, sinon
+ * `validee_n1` (type validé par le seul N+1). Conditionne l'attestation PDF.
+ */
+export function estCongeAccorde(d: Pick<DemandeConge, "statut" | "prochaine_etape" | "type_conge">): boolean {
+  if (d.prochaine_etape != null) return false;
+  const t = d.type_conge;
+  if (!t) return d.statut === "validee_rh" || d.statut === "validee_dg";
+  if (t.necessite_dg) return d.statut === "validee_dg";
+  if (t.necessite_rh) return d.statut === "validee_rh";
+  return d.statut === "validee_n1";
+}
+
+/**
+ * Le connecté peut-il retirer la demande ? Seulement tant qu'elle est `soumise`,
+ * et s'il en est le demandeur (ou `admin`). L'API accepte aussi le créateur
+ * (`created_by`), non exposé : ce cas reste possible mais sans bouton.
+ */
+export function peutAnnulerConge(
+  d: Pick<DemandeConge, "statut" | "agent_id">,
+  user: { agent_id?: number | null; estAdmin: boolean },
+): boolean {
+  if (d.statut !== "soumise") return false;
+  return user.estAdmin || (user.agent_id != null && user.agent_id === d.agent_id);
+}
 
 /** Couleur du badge par statut d'absence. */
 export const STATUT_ABSENCE_COLOR: Record<StatutAbsence, BadgeColor> = {

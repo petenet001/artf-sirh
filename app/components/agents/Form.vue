@@ -9,7 +9,11 @@ import {
   type AgentInput,
   type AgentUpdateInput,
 } from "~/schemas/agent";
-import { STATUTS_AGENT } from "~/constants/enums";
+import {
+  STATUT_AGENT_MODIFIABLE_OPTIONS,
+  estStatutAgentModifiable,
+  statutAgentLabel,
+} from "~/constants/personnel";
 
 /**
  * Fiche agent en **stepper** (3 sections : identité, coordonnées, carrière).
@@ -21,7 +25,8 @@ import { STATUTS_AGENT } from "~/constants/enums";
  *   (dossier en BROUILLON), puis le dossier est **soumis** dans la foulée : on
  *   ne « crée pas un agent », on dépose un dossier qui devra être validé.
  * - **Édition** : depuis la fiche agent (Personnel).
- *   PUT /integration/agents/{id} (accepte `statut`).
+ *   PUT /integration/agents/{id} (accepte `statut`, parmi les statuts
+ *   modifiables : un stagiaire ou un agent archivé garde le sien, non envoyé).
  */
 const props = withDefaults(
   defineProps<{
@@ -42,9 +47,9 @@ const router = useRouter();
 // Options des référentiels (selects de clés étrangères).
 const { options: gradeOptions } = useResourceOptions("opt-grades", () => useGradesApi().list());
 const { options: categorieOptions } = useResourceOptions("opt-categories", () => useCategoriesApi().list());
-const { options: echelonOptions } = useResourceOptions("opt-echelons", () => useEchelonsApi().list());
+const { options: echelonOptions } = useEchelonOptions();
 const { options: fonctionOptions } = useResourceOptions("opt-fonctions", () => useFonctionsApi().list());
-const { options: diplomeOptions } = useResourceOptions("opt-diplomes", () => useDiplomesApi().list());
+const { options: diplomeOptions } = useDiplomeOptions();
 
 // Carrière déduite du diplôme (cf. `utils/carriere.ts`) : le diplôme pointe une
 // classe de la grille, qui porte le couple catégorie × grade ; l'échelon
@@ -57,7 +62,10 @@ const genreItems: { label: string; value: string }[] = [
   { label: "Masculin", value: "M" },
   { label: "Féminin", value: "F" },
 ];
-const statutItems: { label: string; value: string }[] = STATUTS_AGENT.map((s) => ({ label: s, value: s }));
+const statutItems = STATUT_AGENT_MODIFIABLE_OPTIONS;
+// Statut géré par un autre parcours (stage, archivage) : affiché, pas modifiable.
+const statutVerrouille = computed(() => isEdit.value && !estStatutAgentModifiable(props.agent?.statut));
+const asStatut = (v: unknown) => (typeof v === "string" && estStatutAgentModifiable(v) ? v : undefined);
 
 const state = reactive<Record<string, unknown>>({});
 function init() {
@@ -78,7 +86,7 @@ function init() {
     echelon_id: a?.echelon_id ?? undefined,
     fonction_id: a?.fonction_id ?? undefined,
     ...(isEdit.value
-      ? { statut: a?.statut ?? "actif" }
+      ? { statut: estStatutAgentModifiable(a?.statut) ? a?.statut : undefined }
       // Le type d'intégration n'est pas saisi ici : il vient de l'étape
       // précédente du parcours, on le recopie simplement dans le payload.
       : { type_integration_id: props.typeIntegrationId, diplome_id: undefined }),
@@ -304,8 +312,14 @@ function onCancel() {
           <USelectMenu value-key="value" :model-value="asNumber(state.fonction_id)" :items="fonctionOptions" placeholder="Choisir" class="w-full" @update:model-value="state.fonction_id = $event" />
         </UFormField>
 
-        <UFormField v-if="isEdit" label="Statut" name="statut" required>
-          <USelect :model-value="asString(state.statut)" :items="statutItems" class="w-full" @update:model-value="state.statut = $event" />
+        <UFormField
+          v-if="isEdit"
+          label="Statut"
+          name="statut"
+          :help="statutVerrouille ? 'Géré par le module stage ou l’archivage.' : undefined"
+        >
+          <UInput v-if="statutVerrouille" :model-value="statutAgentLabel(agent?.statut)" disabled class="w-full" />
+          <USelect v-else :model-value="asStatut(state.statut)" :items="statutItems" class="w-full" @update:model-value="state.statut = $event" />
         </UFormField>
       </div>
     </template>

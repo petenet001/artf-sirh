@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { STATUT_META } from "~/constants/integration-workflow";
+import { statutAgentLabel } from "~/constants/personnel";
 
 /**
  * Vue globale de **mon entité** (direction, service ou bureau) : réservée à qui
@@ -73,9 +74,8 @@ const repartition = computed(() =>
               :key="statut"
               color="neutral"
               variant="subtle"
-              class="capitalize"
             >
-              {{ statut }} · {{ total }}
+              {{ statutAgentLabel(statut) }} · {{ total }}
             </UBadge>
           </div>
         </UCard>

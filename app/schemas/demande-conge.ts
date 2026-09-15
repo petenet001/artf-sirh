@@ -1,16 +1,24 @@
 import { z } from "zod";
-import { agentSchema } from "~/schemas/agent";
+import { agentSummarySchema } from "~/schemas/agent-summary";
 import { typeCongeSchema } from "~/schemas/type-conge";
 import { STATUTS_DEMANDE_CONGE, ETAPES_CONGE } from "~/constants/enums";
 
-/** Justificatif attaché à une demande : nom d'origine seul (pas d'URL de DL). */
-export const justificatifCongeSchema = z.object({ nom: z.string() });
+/**
+ * Justificatif attaché à une demande. `url` pointe `GET
+ * /api/conges/demandes/{id}/justificatif` (préfixe `/api` inclus) : le
+ * téléchargement passe par le repository (`justificatif(id)`, blob + Bearer).
+ */
+export const justificatifCongeSchema = z.object({
+  nom: z.string(),
+  url: z.string().nullable().optional(),
+});
 
 /** Demande de congé. Forme renvoyée par DemandeCongeResource. */
 export const demandeCongeSchema = z.object({
   id: z.number(),
   agent_id: z.number(),
-  agent: agentSchema.optional(),
+  // Identité légère `{ id, matricule, nom, prenom, nom_complet }` (AgentIdentiteResource).
+  agent: agentSummarySchema.nullable().optional(),
   type_conge_id: z.number(),
   type_conge: typeCongeSchema.optional(),
   date_debut: z.string().nullable().optional(),

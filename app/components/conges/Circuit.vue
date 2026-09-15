@@ -5,10 +5,11 @@ import { ETAPES_CIRCUIT_CONGE, type EtapeCircuitConge } from "~/constants/conges
 /**
  * Circuit de validation d'une demande de congé : les étapes requises par le type
  * (`necessite_*`), leur état (validée / rejetée / en attente / à venir) et les
- * actions sur l'étape courante. La **source de vérité** du bouton à afficher est
- * `demande.prochaine_etape` (serveur) ; qui peut signer dépend de l'étape :
- * N+1 (permission `valider-conges`), RH (rôle `rh`), DG (rôle `directeur-general`).
- * L'API renvoie 403 pour le mauvais signataire — on masque donc au mieux en amont.
+ * actions sur l'étape courante. La **source de vérité** de l'étape est
+ * `demande.prochaine_etape` (serveur). Qui peut la signer (N+1 réel de l'agent,
+ * rôle `rh`, rôle `directeur-general`, `admin`) est tranché par l'API : on
+ * n'affiche les boutons que si la demande figure dans **sa file**
+ * (`GET /conges/demandes/a-valider`), qui applique exactement cette règle.
  */
 const props = defineProps<{ demande: DemandeConge }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -42,13 +43,20 @@ const ETAT_META: Record<EtapeEtat, { icon: string; classe: string; label: string
   a_venir: { icon: "i-lucide-minus", classe: "bg-elevated text-dimmed", label: "À venir" },
 };
 
-/** L'utilisateur peut-il signer cette étape ? (gating au mieux, l'API tranche.) */
-function peutSigner(e: EtapeCircuitConge): boolean {
-  if (auth.hasRole("admin")) return true;
-  if (e.key === "n1") return auth.can("valider-conges");
-  if (e.key === "rh") return auth.hasRole("rh");
-  return auth.hasRole("directeur-general");
-}
+// File du signataire connecté, rechargée à chaque changement d'étape. La
+// permission `valider-conges` ne fait qu'ouvrir la route : un RH n'est pas le
+// N+1, un chef ne signe pas la RH (403) — d'où ce contrôle par la file.
+const { data: file } = useAsyncData(
+  () => `conge-signable-${id.value}`,
+  () =>
+    auth.can("valider-conges") && props.demande.prochaine_etape
+      ? api.aValider()
+      : Promise.resolve(null),
+  { watch: [() => props.demande.prochaine_etape] },
+);
+
+/** L'utilisateur peut-il signer l'étape courante ? */
+const peutSigner = computed(() => file.value?.data.some((d) => d.id === id.value) ?? false);
 
 const busy = ref(false);
 
@@ -109,7 +117,10 @@ async function confirmerRejet() {
 
 <template>
   <div>
-    <ol class="space-y-4">
+    <p v-if="demande.statut === 'annulee'" class="text-sm text-muted">
+      Demande retirée par le demandeur avant toute validation : circuit interrompu.
+    </p>
+    <ol v-else class="space-y-4">
       <li v-for="e in etapes" :key="e.key" class="flex gap-3">
         <span class="flex size-8 shrink-0 items-center justify-center rounded-full" :class="ETAT_META[etat(e)].classe">
           <UIcon :name="ETAT_META[etat(e)].icon" class="size-4" />
@@ -126,7 +137,7 @@ async function confirmerRejet() {
             « {{ demande[e.commentaireField] }} »
           </p>
 
-          <div v-if="etat(e) === 'courante' && peutSigner(e)" class="mt-2 flex gap-2">
+          <div v-if="etat(e) === 'courante' && peutSigner" class="mt-2 flex gap-2">
             <UButton size="xs" icon="i-lucide-check" :loading="busy" @click="valider(e)">Valider</UButton>
             <UButton size="xs" color="error" variant="soft" icon="i-lucide-x" :loading="busy" @click="ouvrirRejet(e)">
               Rejeter
@@ -136,7 +147,7 @@ async function confirmerRejet() {
       </li>
     </ol>
 
-    <p v-if="!etapes.length" class="text-sm text-muted">Aucune étape de validation pour ce type.</p>
+    <p v-if="!etapes.length && demande.statut !== 'annulee'" class="text-sm text-muted">Aucune étape de validation pour ce type.</p>
 
     <UModal v-model:open="rejetOpen" title="Rejeter la demande">
       <template #body>

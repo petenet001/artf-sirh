@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TabsItem } from "@nuxt/ui";
+import { statutAgentLabel } from "~/constants/personnel";
 
 const auth = useAuthStore();
 
@@ -105,7 +106,7 @@ const tabs = computed<TabsItem[]>(() => [
               <BaseDataState :pending="agentPending" :empty="!agent" empty-label="Fiche agent introuvable">
                 <dl v-if="agent" class="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
                   <BaseInfoItem icon="i-lucide-hash" label="Matricule" :value="agent.matricule" />
-                  <BaseInfoItem icon="i-lucide-activity" label="Statut" :value="agent.statut" />
+                  <BaseInfoItem icon="i-lucide-activity" label="Statut" :value="statutAgentLabel(agent.statut)" />
                   <BaseInfoItem icon="i-lucide-briefcase" label="Fonction" :value="agent.fonction?.nom" />
                   <BaseInfoItem icon="i-lucide-medal" label="Grade" :value="agent.grade?.nom" />
                   <BaseInfoItem icon="i-lucide-layers" label="Catégorie" :value="agent.categorie?.nom" />

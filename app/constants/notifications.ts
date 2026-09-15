@@ -49,9 +49,8 @@ function idFromData(data: Notification["data"], ...keys: string[]): number | und
 
 /**
  * Écran cible d'une notification, ou `undefined` si aucun écran ne l'accueille
- * encore (ex. congés / absences, pas encore livrés côté FE). On ne construit un
- * lien que si l'identifiant attendu est présent dans `data` — jamais de
- * navigation « au hasard ».
+ * encore. On ne construit un lien vers un détail que si l'identifiant attendu
+ * est présent dans `data` — jamais de navigation « au hasard ».
  */
 export function notificationLink(n: Pick<Notification, "domaine" | "data">): string | undefined {
   const data = n.data;
@@ -79,7 +78,13 @@ export function notificationLink(n: Pick<Notification, "domaine" | "data">): str
       const id = idFromData(data, "lot_nomination_id", "lot_id");
       return id ? `/carriere/nominations/lots/${id}` : undefined;
     }
-    // conge / absence : écrans pas encore livrés → pas de lien pour l'instant.
+    case "conge": {
+      const id = idFromData(data, "demande_id");
+      return id ? `/conges/demandes/${id}` : undefined;
+    }
+    // Pas d'écran de détail d'absence : la liste (file N+1 par défaut) suffit.
+    case "absence":
+      return "/conges/absences";
     default:
       return undefined;
   }

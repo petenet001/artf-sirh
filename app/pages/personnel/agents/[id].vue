@@ -48,14 +48,6 @@ async function desarchiver() {
   }
 }
 
-const statutColor: Record<string, "success" | "neutral" | "warning" | "error" | "primary"> = {
-  actif: "success",
-  stagiaire: "primary",
-  inactif: "neutral",
-  suspendu: "warning",
-  retraite: "neutral",
-};
-
 /** Initiales (prénom + nom) servant de repli quand il n'y a pas de photo. */
 const initiales = computed(() => {
   const a = agent.value;
@@ -124,9 +116,7 @@ async function onDelete() {
           </template>
 
           <template #meta>
-            <UBadge :color="statutColor[agent.statut] ?? 'neutral'" variant="subtle" class="capitalize">
-              {{ agent.statut }}
-            </UBadge>
+            <AgentsStatutBadge :statut="agent.statut" />
             <span class="inline-flex items-center gap-1.5">
               <UIcon name="i-lucide-hash" class="size-4 opacity-70" />
               {{ agent.matricule ?? "Matricule non assigné" }}

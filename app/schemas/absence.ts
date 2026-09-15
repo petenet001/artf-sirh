@@ -1,13 +1,14 @@
 import { z } from "zod";
-import { agentSchema } from "~/schemas/agent";
+import { agentSummarySchema } from "~/schemas/agent-summary";
 import { typeAbsenceSchema } from "~/schemas/type-absence";
 import { STATUTS_ABSENCE } from "~/constants/enums";
 
-/** Absence d'un agent (circuit unique : en_attente → validee / rejetee). */
+/** Absence d'un agent (circuit N+1 seul : en_attente → validee / rejetee). */
 export const absenceSchema = z.object({
   id: z.number(),
   agent_id: z.number(),
-  agent: agentSchema.optional(),
+  // Identité légère `{ id, matricule, nom, prenom, nom_complet }` (AgentIdentiteResource).
+  agent: agentSummarySchema.nullable().optional(),
   type_absence_id: z.number(),
   type_absence: typeAbsenceSchema.optional(),
   date_debut: z.string().nullable().optional(),

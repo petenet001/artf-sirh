@@ -4,9 +4,11 @@ import type { CongeSolde } from "~/schemas/conge-solde";
 import { agentNom } from "~/constants/conges";
 
 /**
- * Soldes de congé des agents. Lecture seule (les soldes se créent/débitent
- * serveur). Création paresseuse : une liste vide est normale. Le nom d'agent
- * n'étant pas embarqué dans la ressource, on le résout via le référentiel agents.
+ * Soldes de congé des agents. Lecture seule : un solde est créé à la première
+ * lecture de l'agent pour l'année, débité à la validation finale. Le solde
+ * initial inclut le bonus d'ancienneté (paliers CCN art. 77), montré à part.
+ * Le nom d'agent n'étant pas embarqué dans la ressource, on le résout via le
+ * référentiel agents.
  */
 const soldesApi = useCongeSoldesApi();
 const agentsApi = useAgentsApi();
@@ -21,6 +23,11 @@ const columns: TableColumn<CongeSolde>[] = [
   { id: "type", header: "Type", cell: ({ row }) => row.original.type_conge?.nom ?? `#${row.original.type_conge_id}` },
   { accessorKey: "annee", header: "Année" },
   { accessorKey: "solde_initial", header: "Solde initial" },
+  {
+    id: "jours_anciennete",
+    header: "Dont ancienneté",
+    cell: ({ row }) => (row.original.jours_anciennete ? `+${row.original.jours_anciennete}` : "—"),
+  },
   { id: "solde_actuel", header: "Solde actuel" },
 ];
 </script>
