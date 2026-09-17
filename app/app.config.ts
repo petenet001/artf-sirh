@@ -70,6 +70,17 @@ export default defineAppConfig({
     inputMenu: { slots: { base: "rounded-lg py-2.5" }, defaultVariants: { size: "lg" } },
     // Libellés de champ un peu plus lisibles, à l'échelle des champs.
     formField: { slots: { label: "text-sm font-medium text-highlighted" } },
+    // Zones de dépôt de fichier (`UFileUpload`, via `BaseUploadZone`) : mêmes
+    // rondeurs que les cartes et pastille d'icône teintée comme `BaseStatCard`.
+    fileUpload: {
+      slots: {
+        base: "rounded-xl",
+        avatar: "bg-primary/10 text-primary",
+        label: "text-sm font-medium text-highlighted",
+        description: "text-xs text-muted",
+        file: "rounded-lg bg-default",
+      },
+    },
     table: {
       slots: {
         thead: "bg-elevated/40",

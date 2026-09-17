@@ -10,6 +10,7 @@ import { notificationDomaineMeta, notificationLink } from "~/constants/notificat
  */
 const { items, nonLues, pending, loaded, refresh, marquerLu, toutLire } = useNotifications();
 const handleError = useApiError();
+const auth = useAuthStore();
 
 const open = ref(false);
 
@@ -26,7 +27,11 @@ const badge = computed(() => (nonLues.value > 99 ? "99+" : String(nonLues.value)
 
 async function ouvrir(notification: Notification) {
   open.value = false;
-  const link = notificationLink(notification);
+  const link = notificationLink(notification, {
+    // Discipline : un agent sans permission est renvoyé vers son espace.
+    peutConsulterDiscipline:
+      auth.can("consulter-discipline") || auth.can("proposer-discipline") || auth.can("prononcer-discipline"),
+  });
   try {
     await marquerLu(notification);
   } catch (err) {

@@ -33,7 +33,7 @@ onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
 <template>
   <header class="sticky top-0 z-40 border-b transition-colors duration-300" :class="scrolled
     ? 'border-default bg-default/70 backdrop-blur-md supports-[backdrop-filter]:bg-default/60'
-    : 'border-default/70 bg-white'">
+    : 'border-default/70 bg-default'">
     <div class="mx-auto flex h-16 max-w-full items-center gap-4 px-4 sm:px-6 lg:px-8">
       <!-- Marque → 1er module autorisé -->
       <NuxtLink :to="landing" class="flex shrink-0 items-center gap-2.5">

@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import { cartesVisibles } from "~/constants/mon-espace";
+
 /**
- * Espace personnel de l'agent : atterrissage par défaut d'un utilisateur sans
- * module métier. Coquille pour l'instant — les écrans « Mes congés / Mes
- * absences » (self-service) arriveront dans une itération ultérieure.
+ * Espace personnel : atterrissage par défaut de tout compte, et **seul** endroit
+ * où l'on agit sur son propre dossier plutôt que sur celui des autres.
+ *
+ * Les cartes ne s'affichent que si elles mènent quelque part : la plupart des
+ * écrans personnels supposent un `agent_id` sur le compte (un compte purement
+ * administratif n'a ni congés, ni carrière, ni dossier).
  */
 const auth = useAuthStore();
+
+/** Un compte sans agent rattaché n'a pas de dossier personnel à consulter. */
+const estAgent = computed(() => !!auth.user?.agent_id);
+
+const cartes = computed(() =>
+  cartesVisibles({ estAgent: estAgent.value, can: (p) => auth.can(p) }),
+);
 
 const greeting = ref("Bonjour");
 onMounted(() => {
@@ -40,22 +52,12 @@ onMounted(() => {
 
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <UPageCard
-          title="Mon profil"
-          description="Vos informations, rôles et permissions."
-          icon="i-lucide-user"
-          to="/profil"
-        />
-        <UPageCard
-          title="Mes congés"
-          description="Bientôt disponible."
-          icon="i-lucide-calendar-check"
-          class="pointer-events-none opacity-60"
-        />
-        <UPageCard
-          title="Mes absences"
-          description="Bientôt disponible."
-          icon="i-lucide-calendar-x"
-          class="pointer-events-none opacity-60"
+          v-for="carte in cartes"
+          :key="carte.key"
+          :title="carte.label"
+          :description="carte.description"
+          :icon="carte.icon"
+          :to="carte.to"
         />
       </div>
     </div>

@@ -1,8 +1,8 @@
 # Alignement front ↔ API — septembre 2026
 
 > Document **vivant** : cocher au fil des livraisons front.
-> Référence backend : `project-api-rh-artf` branche `develop` @ `dc8641a` (2026-09-15).
-> Référence front : `93986ca` (2026-09-06) + travail en cours (formulaire agent, login, branding).
+> Référence backend : `project-api-rh-artf` branche `develop` @ `465a184` (2026-09-16).
+> Référence front : branche `feature/alignement-api-2026-09` (lot 1 livré le 15/09, lot 2 le 17/09).
 > Contrat backend : `../project-api-rh-artf/doc/note-fe-etat-implementations.md` — **vérifié contre le code**
 > (routes, FormRequests, Resources, enums) ; les écarts doc ↔ code sont signalés ⚠️.
 
@@ -20,7 +20,13 @@
 | 14/09 | **Évaluation lots A–C** : N+1 = poste dominant sur 24 mois (art. 62), tableau d'avancement (`inscrit_tableau`), PDF fiche + PDF note de synthèse | +5 |
 | 15/09 | **Reclassements art. 73–75** (`/carriere/reclassements`) + 3 nouveaux `type_changement` salaire ; DG reçoit `consulter-salaires` | +7 |
 
-Front : **aucune** de ces livraisons n'est branchée à l'écran, sauf le socle congés (demandes, soldes, circuit, PDF, fériés, règles) livré le 04/09.
+| 15–16/09 | **+135 routes, 0 supprimée** (route:list comparé `dc8641a` → `465a184`) : Discipline `/discipline` (38), Paie `/paie` (27), Formations `/formations` (30), Affaires sociales `/affaires-sociales` (23), Positions conventionnelles `/carriere/positions` (8), périodes d'essai contrats/nominations + `stages/{id}/convertir-agent` + alerte délai 30 j (9) | +135 |
+
+Champs ajoutés sur des ressources **déjà consommées** par le front (impact schémas Zod, à traiter avec les lots correspondants) : `hors_grille` (agent, salaire, carrière), `bonification_echelons` (diplôme), `deja_salarie` / `pieces_rapprochement` / `motif_code` / `motif_archivage_code` / `prioritaire_reembauche_jusquau` (dossier, agent), bloc `essai { statut, duree_mois, date_debut, date_fin, prochaine_etape }` + `soumis_a_essai` (contrat, nomination), `est_embauche_ccn`.
+
+⚠️ **Positions CCN art. 76–80** : `detachement`, `disponibilite`, `position_exceptionnelle`, `sous_le_drapeau` ne passent plus par `PUT /integration/agents/{id}` (rejetés par le FormRequest) mais par `POST /carriere/positions` — le select « Statut » du formulaire agent est donc à réduire (lot 7).
+
+Front : **aucune** de ces livraisons n'est branchée à l'écran, sauf le socle congés (demandes, soldes, circuit, PDF, fériés, règles) livré le 04/09 et le socle évaluation livré le 17/09 (lot 2).
 
 ---
 
@@ -155,16 +161,16 @@ Nuances : en `signee_evalue` l'agent peut aussi `reclamer` ; `commission_prepara
 
 ---
 
-## 4. Points backend à remonter (toujours présents au 15/09)
+## 4. Points backend à remonter (revérifiés dans le code au 17/09)
 
 | # | Problème | Impact front | Où |
 |---|---|---|---|
-| B1 | `apiResource(...)->middleware([assoc])` applique **toutes** les permissions à toutes les routes | un chef ne peut pas lire la grille qu'il doit noter (403). Même motif sur `users` et `roles` | `routes/api.php:424` (questions-evaluation) → `middlewareFor` |
+| ~~B1~~ | ~~`apiResource(...)->middleware([assoc])`~~ — **corrigé** le 15/09 : `questions-evaluation`, `users` et `roles` déclarent désormais une permission par méthode | — | `routes/api.php:641` |
 | B2 | Aucun contrôle d'acteur dans `/avancements` (hors PDF) | tout chef peut « valider RH » / décider ; tout agent peut signer la fiche d'un autre. Le front masque, mais ce n'est pas une sécurité | `EvaluationStatutService`, commissions, bonifications |
-| B3 | `EvaluationNotificationService` jamais appelé | cloche vide pour le domaine `evaluation` | services évaluation |
-| B4 | `avancer-echelon` filtre `echelons.classe_id` (colonne inexistante) → **500** | bouton « Appliquer l'avancement » inutilisable | `CommissionAvancementService.php:160` |
-| B5 | `reclamations.unique(evaluation_id)` → 2ᵉ réclamation = 500 SQL ; `envoyer-rh` possible pendant une réclamation | | migration réclamations, `EvaluationStatutService` |
-| B6 | `directions.rattache_dg` non exposé | impossible d'afficher / régler la variante DG de la chaîne d'avis | `DirectionResource` / requests |
+| ~~B3~~ | **corrigé** le 17/09 (branche backend `fix/evaluation-b3-b4-b5`) : le service est branché sur l'attribution de fiche, la signature du notateur, la transmission RH, la validation, le rejet, l'ouverture des commissions, l'avancement, la bonification et l'exceptionnel | la cloche reçoit le domaine `evaluation` ; le lien front était déjà prêt | services évaluation |
+| ~~B4~~ | **corrigé** le 17/09 : `avancerEchelon` délègue à `SalaireAgentService::avancerEchelons`, qui connaît la grille, clôture la ligne courante et synchronise `agents.echelon_id` — comme le faisaient déjà la bonification (art. 71) et l'exceptionnel (art. 72) | « Appliquer l'avancement » fonctionne et crée la nouvelle ligne salariale | `CommissionAvancementService::avancerEchelon` |
+| ~~B5~~ | **corrigé** le 17/09 : unicité levée (migration), `reclamation()` devient `latestOfMany`, et `envoyer-rh` renvoie 422 `errors.reclamation` tant qu'une réclamation n'est pas traitée | une fiche peut être contestée plusieurs fois ; l'agent ne court-circuite plus l'arbitrage RH | migration + `EvaluationStatutService` |
+| B6 | **toujours présent** — `directions.rattache_dg` non exposé | on ne peut ni afficher ni régler la variante DG de la chaîne d'avis. Contourné : le front lit la chaîne réelle via `GET …/niveaux-requis` au lieu de la recalculer | `DirectionResource` / requests |
 | B7 | Note FE : `PUT /personnel/agents/{id}` (inexistant), `meta.domaine` (c'est `domaine`), notifications évaluation annoncées, enveloppe sans `success` | | `doc/note-fe-etat-implementations.md` |
 
 ---
@@ -184,35 +190,222 @@ Chaque lot : schémas + tests, repo, composable, pages, `npm run test && npm run
 - [x] `TYPES_CHANGEMENT_SALAIRE_AGENT` (+3)
 - [ ] reporté : cartes `/conges/statistiques` ; gate Rémunération pour le DG (F3, avec le lot 4)
 
-### Lot 2 — Évaluation, socle (parcours agent / N+1 / RH)
-- [ ] `constants/evaluations.ts` (enums, libellés, couleurs, étapes → boutons) + `utils/evaluationActions.ts` (qui agit, testé)
-- [ ] schémas `question-evaluation`, `session-evaluation`, `evaluation`, `note-evaluation`, `reclamation`, `avis-hierarchique`, `connaissance` + tests
-- [ ] repos `api/evaluations.ts`, `api/sessions-evaluation.ts`, `api/questions-evaluation.ts`, `api/reclamations.ts`
-- [ ] module `evaluations` dans `modules.ts` (+ tests des gates, `anyRole` pour les onglets RH)
-- [ ] pages : sessions (liste, création, détail + fiches + stats + sans supérieur), fiche (grille de notation, avis, signatures, réclamation, PDF), mes évaluations, à noter, validation RH + réclamations, grille de critères
-- [ ] carte « Mes évaluations » dans Mon espace
+### Lot 2 — Évaluation, socle (parcours agent / N+1 / RH) — ✅ 2026-09-17
+- [x] enums dans `constants/enums.ts` + `constants/evaluations.ts` (libellés, couleurs, barèmes, étapes) + `utils/evaluationActions.ts` (qui agit, 20 tests)
+- [x] schémas `question-evaluation`, `session-evaluation` (+ `stats`), `evaluation`, `note-evaluation`, `reclamation`, `avis-hierarchique` + tests
+- [x] repos `api/evaluations.ts`, `api/sessions-evaluation.ts`, `api/questions-evaluation.ts`, `api/reclamations.ts`
+- [x] composables `useEvaluations` (portées mine / à noter / RH), `useEvaluation`, `useSessionsEvaluation`, `useActeurEvaluation`
+- [x] module `evaluations` dans `modules.ts` + gates testés (`anyRole` pour la validation RH, `creer-evaluations` pour sessions et grille)
+- [x] pages : mes évaluations, à noter, fiche (grille critère par critère, contexte, avis, signatures, réclamation, PDF), sessions (liste + détail : stats, fiches, agents sans N+1, clôture), validation RH + réclamations, grille de critères
+- [x] carte « Mes évaluations » dans Mon espace
+- [ ] reporté au lot 3 : connaissances complémentaires, avis hiérarchiques **actionnables** (ils ne sont affichés qu'en lecture)
 
-### Lot 3 — Évaluation, suite (après B1–B5 côté backend de préférence)
-- [ ] avis hiérarchiques (chaîne `niveaux-requis`)
-- [ ] tableau d'avancement + commissions préparatoire / avancement + `synthese-pdf` + avancer-échelon
-- [ ] bonifications stage (art. 71) + avancements exceptionnels (art. 72)
-- [ ] connaissances complémentaires
-- [ ] lien cloche `evaluation`
+> Non rejoué contre l'API : la base SQLite locale est antérieure aux migrations
+> d'évaluation (`php artisan migrate --seed` requis) et le rôle `rh` n'y a que
+> `consulter-evaluations` — d'où des `Accès refusé` sur `questions-evaluation`
+> et `reclamations` tant que `RoleSeeder` n'est pas rejoué.
 
-### Lot 4 — Reclassements art. 73–75
-- [ ] schéma `reclassement` + tests, repo `api/reclassements.ts`
-- [ ] file `/carriere/reclassements` (liste, détail + éligibilité, approuver / rejeter selon article, appliquer)
-- [ ] création depuis la fiche agent (formulaire conditionnel au type) + section « Reclassements » dans `personnel/agents/[id]`
-- [ ] gates : RH + DG (voir §6)
+### Lot 3 — Évaluation, suite — ✅ 2026-09-17
+- [x] avis hiérarchiques actionnables : chaîne réelle via `niveaux-requis`, séquentialité (niveau N ouvert seulement si N−1 a signé), correspondance de rôle, signature définitive, alerte « envoi RH bloqué »
+- [x] tableau d'avancement (inscrire / retirer, y compris depuis la fiche) + commission préparatoire (ouvrir, harmoniser avec alerte d'écart > 5, clôturer, note de synthèse PDF) + commission d'avancement (ouvrir, décider, clôturer) + application de l'échelon — écran `/evaluations/tableau`
+- [x] bonifications stage (art. 71) + avancements exceptionnels (art. 72) — écran `/evaluations/bonifications`
+- [x] connaissances complémentaires (sur la fiche)
+- [x] lien cloche `evaluation` (prêt ; le backend n'émet rien — B3)
+
+> B4 a été corrigé depuis, côté backend (branche `fix/evaluation-b3-b4-b5`) :
+> « Appliquer l'avancement » crée bien la nouvelle ligne salariale.
+
+### Lots 5 à 9 — modules backend des 15–16/09 — ✅ 2026-09-17
+
+- **Lot 5 — Discipline** (`/discipline`) : module dédié (dossiers, avertissements,
+  types de sanction), circuit rapport → instruction RH → prononcé **DG** avec
+  séparation stricte des rôles, pièces art. 91 (l'instruction est refusée sans
+  pièce), PDF rapport et décision, historique et récidive sur la fiche agent,
+  self-service `/mon-espace/discipline` pour l'agent concerné, lien de cloche.
+- **Lot 6 — Affaires sociales** (`/affaires-sociales`) : organismes, affiliations
+  avec alerte « sans CNSS » actionnable, ayants droit (liens juridiques par type,
+  régimes d'âge) et pièces, dossier social sur la fiche agent.
+- **Lot 7 — Positions & essais** : écran Positions art. 76–80 (RH soumet, DG
+  approuve, renouvellement, clôture avec signal de réintégration), périodes
+  d'essai contrats art. 49 et nominations art. 50, file du délai de 30 jours
+  art. 52, select « Statut » de l'agent réduit à `actif / inactif / suspendu /
+  retraite`, badge hors grille art. 55, nouveaux champs (`bonification_echelons`,
+  `deja_salarie`, `motif_code`, `pieces_rapprochement`…).
+- **Lot 8 — Formation** (`/formations`) : catalogue avec plafonds de durée, plan
+  annuel (brouillon → validé → exécuté → clôturé), inscriptions (présence,
+  clôture avec rapport art. 100, annulation), certifications ; écran
+  « Conventions de stage » qui porte la conversion stagiaire → agent.
+- **Lot 9 — Paie** (`/paie`, rattachée au module Rémunération) : référentiel des
+  éléments (système vs maison, `a_parametrer`), affectation par agent sur la
+  fiche, lot mensuel piloté par `data.actions` avec anomalies bloquantes,
+  lignes, bulletin enrichi et export CSV/PDF de la masse.
+
+### Lot 4 — Reclassements art. 73–75 — ✅ 2026-09-17
+- [x] schéma `reclassement` + tests, repo `api/reclassements.ts`
+- [x] file `/carriere/reclassements` (liste, détail + éligibilité, approuver / rejeter **selon l'article** — RH pour le 73, DG pour les 74–75 —, appliquer idempotent)
+- [x] création depuis la fiche agent, formulaire conditionnel au type + section « Reclassements »
+- [x] gates : module Carrière ouvert à `consulter-salaires` avec `navGates` (F2) ; Rémunération refermée sur `anyRole: ["rh","admin"]` (F3)
 
 ---
+
+## 5 bis. Espace personnel (self-service) — ✅ 2026-09-17
+
+Jusqu'ici, tout écran partait du point de vue RH : on choisit un agent, puis on
+agit sur lui. Les routes indexées par agent existaient pourtant sans permission
+particulière. L'espace personnel les exploite.
+
+| Écran | Route | Ce qu'il apporte |
+|---|---|---|
+| Mon dossier | `/mon-espace/dossier` | coordonnées, situation familiale, contacts d'urgence, documents — **modifiables par l'agent lui-même** (le préfixe `/personnel` n'exige aucune permission) |
+| Ma carrière | `/mon-espace/carriere` | affectation et nomination du jour, contrats et leur essai, historiques ; positions et reclassements seulement si `consulter-salaires` |
+| Mes congés | `/mon-espace/conges` | soldes par type en tête, demandes, dépôt **en son nom** |
+| Mes absences | `/mon-espace/absences` | ses absences, déclaration **en son nom** |
+| Mes évaluations | `/evaluations/mes-evaluations` | inchangé (lot 2) |
+| Mon dossier disciplinaire | `/mon-espace/discipline` | inchangé (lot 5) |
+
+La grille de `mon-espace` vient d'une source unique (`constants/mon-espace.ts`,
+testée) : une carte s'affiche si le compte a un agent rattaché **et** la
+permission de lecture du domaine.
+
+### Déclarer pour soi
+
+Les modales congé et absence ont désormais deux usages : **pour un tiers** (la
+RH ou un chef choisit l'agent) et **pour soi** (`pour-moi`), où le champ Agent
+cède la place à l'identité du connecté. Le mode « pour soi » s'impose de
+lui-même à qui n'a pas `consulter-agents` — l'ancien formulaire lui présentait
+un select vide, alimenté par un appel qui lui répondait 403 : un agent ne
+pouvait tout simplement pas déclarer son absence.
+
+Les listes RH gardent les deux entrées : « Nouvelle demande » et « Pour moi ».
+
+### Cloisonnement des soldes
+
+`GET /conges/soldes` renvoie **tous** les agents à quiconque détient
+`consulter-conges` — que le rôle `agent` possède. La page a donc désormais une
+portée : « Mes soldes » par défaut (route indexée par agent), vue d'ensemble
+réservée aux valideurs et à la RH.
+
+> ⚠️ Même remarque, non traitée car elle relève de l'API : `GET /conges/demandes`
+> et `GET /absences` ne sont pas cloisonnées non plus. Le front force la portée
+> « mine » et masque « Toutes », mais c'est une règle d'interface, pas une
+> sécurité.
+
+### Reste hors de l'espace personnel
+
+Faute de route accessible à l'agent — décision backend à prendre :
+`consulter-salaires` garde ses bulletins de paie et son salaire,
+`consulter-formations` ses inscriptions et certifications, et les affaires
+sociales n'ont pas de self-service en P1 (choix explicite du backend).
+
+## 5 ter. Vue d'ensemble RH — ✅ 2026-09-17
+
+Le backend a livré le **module Reporting D.6** (`/api/reporting`, permission
+`consulter-reporting` — RH, admin et **DG**) le jour même. Le tableau de bord ne
+compte donc plus rien dans le navigateur : il consomme les agrégations serveur.
+
+| Bande de la page | Source |
+|---|---|
+| Effectif présent, actifs, stagiaires, arrivées et départs de l'année | `dashboard` |
+| À régulariser (6 contrôles, triés par gravité) | `alertes` |
+| Campagne d'évaluation : avancement, note moyenne, mentions | `stats/evaluations` |
+| Congés et absences : en congé aujourd'hui, jours accordés, circuit, types | `stats/conges` |
+| Masse salariale du dernier lot clôturé | `dashboard.masse_salariale` |
+| Qui compose l'effectif : statut, genre, direction, grade, fonction, type d'intégration | `dashboard.repartitions` |
+| Exports CSV / PDF | `exports/{type}` |
+
+### Ordre des bandes — ce qui passe devant
+
+L'ordre suit ce qui change le comportement du lecteur, pas la richesse de la
+donnée :
+
+1. **Le pouls** — l'effectif présent, un seul grand chiffre, et ce qui l'entoure.
+2. **Ce qui vous attend** — les files personnalisées : dossiers arrêtés faute
+   d'une décision de la personne connectée. C'est le seul contenu qui appelle une
+   action immédiate.
+3. **Ce qui n'est pas conforme** — les six alertes du module Reporting.
+4. **La masse salariale** — pour une direction générale, le deuxième chiffre du
+   tableau.
+5. **La campagne d'évaluation**, quand il y en a une.
+6. **Congés et absences.**
+7. **Qui compose l'effectif** — de la connaissance, pas de l'action : d'où sa
+   place en bas.
+
+Les **files personnalisées** n'existent pas dans le module Reporting (demande 3
+au backend) : le front les interroge donc une par une, et seulement celles dont
+l'utilisateur a la permission — un compte sans droit ne déclenche aucun appel.
+Neuf files déclarées, en `allSettled` : une file qui échoue vaut zéro et
+disparaît plutôt que d'afficher un chiffre faux.
+
+### Parti pris de lecture
+
+La page doit se comprendre **sans connaître le modèle de données**. Chaque bloc
+porte une phrase qui dit ce qu'il compte (« Effectif présent = agents actifs,
+stagiaires et suspendus ; les archivés, retraités et détachés n'y figurent
+pas »), chaque graphique écrit ses valeurs, et une alerte à zéro n'est pas
+affichée — un contrôle sans anomalie n'est pas une information.
+
+### Graphiques
+
+Faits maison, sans bibliothèque (CLAUDE.md §2 : le moins de dépendances
+possible) : barres horizontales, barre empilée, jauge.
+
+- **Une seule teinte pour une mesure unique** (bleu ARTF) : une grandeur se lit
+  avec une couleur, la teinte n'a rien à distinguer.
+- **Deux teintes catégorielles** réservées au genre, validées pour la vision
+  daltonienne (ΔE 19,7 protan · 28,9 en vision normale) ; gris neutre pour
+  « non renseigné », qui n'est pas une catégorie mais un trou.
+- **Couleurs d'état** réservées aux alertes, jamais série, toujours accompagnées
+  d'une icône et d'un libellé.
+
+Formes, choisies sur ce que la donnée est :
+
+| Donnée | Forme | Pourquoi |
+|---|---|---|
+| Listes longues (direction, grade, type de congé) | barres horizontales | libellés lisibles, pas de texte tourné |
+| Part-du-tout courte (genre, composition de l'effectif, gains/retenues) | anneau ou barre empilée | se lit d'un coup d'œil, ≤ 3 parts |
+| Distribution continue par tranche (âge) | **histogramme en colonnes** | l'œil lit la silhouette, ce qu'une liste de barres ne donne pas |
+| Évolution dans le temps (net mensuel) | **courbe avec aire** | la seule série exacte disponible |
+| Ratio sur un tout (taux d'accord des congés, avancement d'une campagne) | jauge | un ratio parle mieux que deux totaux côte à côte | La grille du bas est **asymétrique** — une liste longue à gauche, une
+part-du-tout à droite, puis trois colonnes courtes — plutôt que six cartes
+identiques.
+
+⚠️ Un axe **ordonné** ne se trie pas par volume — ni les tranches d'âge, ni les
+mentions d'évaluation (`ordonne` sur `VizBarresH`, ordre naturel dans
+`VizColonnes`). Trier « 55 ans et plus » en tête parce qu'ils sont nombreux, ou
+« Bien » avant « Excellent », détruirait l'information que porte la suite.
+
+### Une courbe, et une seule — celle dont la donnée est sans ambiguïté
+
+Le module Reporting n'expose aucune série temporelle, mais `GET /paie/lots`
+renvoie **tous** les lots avec leur année, leur mois et leurs totaux : c'est une
+série mensuelle exacte, en un appel. D'où la **courbe du net mensuel**
+(`useSerieMasseSalariale`), sur les lots validés ou clôturés seulement — un lot
+en brouillon donnerait un montant qui bougera encore. Échelle partant de zéro :
+tronquer la base d'un montant exagère visuellement les variations.
+
+La courbe des jours de congé, elle, **n'est pas faite** bien que les dates
+existent : répartir un congé à cheval sur deux mois est une décision métier, pas
+un calcul. C'est au backend de la trancher (demande 1).
+
+L'évolution de l'effectif reste hors de portée : elle suppose des snapshots
+mensuels, explicitement hors périmètre V1 (`plan-module-reporting.md` §7).
+Les demandes qui restent sont dans
+[`besoin-api-tableau-de-bord.md`](./besoin-api-tableau-de-bord.md) : séries
+mensuelles, blocs discipline et intégration, compteurs de files personnalisées,
+écrêtage par bloc. Une courbe fausse vaudrait moins que pas de courbe.
+
+### À noter
+
+`GET /reporting/effectifs` est **paginé** : deuxième exception à la règle « pas
+de pagination » de l'API, après l'inbox des notifications. Le type
+`Paginated<T>` existait déjà.
 
 ## 6. Décisions à trancher
 
 | # | Sujet | Proposition |
 |---|---|---|
 | F1 | Chemin front du module évaluation | `/evaluations/…` (libellé « Évaluations »), le préfixe API `/avancements` reste dans les repos |
-| F2 | Où vit la file des reclassements | `/carriere/reclassements` (aligné API) ; élargir le gate Carrière à `consulter-salaires` avec `navGates` pour que le DG ne voie que cet onglet |
-| F3 | Module Rémunération ouvert au DG (nouvelle permission) | gater Grille / Salaires agents sur `anyRole: ["rh","admin"]` |
+| F2 ✅ | Où vit la file des reclassements | **tranché** : `/carriere/reclassements`, gate Carrière élargi à `consulter-salaires` + `navGates` (le DG n'y voit que Reclassements et Positions) |
+| F3 ✅ | Module Rémunération ouvert au DG (nouvelle permission) | **tranché** : Grille / Salaires / Paie gatés sur `anyRole: ["rh","admin"]` ; le DG passe par Carrière > Reclassements et Positions |
 | F4 | Grille de critères | onglet du module Évaluations (pas dans Administration > Référentiels) : c'est un paramétrage métier RH |
 | F5 | Ordre des lots 2 / 3 vs corrections backend | lancer le lot 2 maintenant, conditionner le lot 3 à B1–B5 |

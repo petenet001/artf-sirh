@@ -5,11 +5,19 @@ import type { TypeAbsence } from "~/schemas/type-absence";
 import { agentNom } from "~/constants/conges";
 
 /**
- * Modale de déclaration d'une absence. Le type sélectionné pilote le motif :
- * obligatoire si `justification_requise`. Circuit unique côté API (validation
- * simple ensuite).
+ * Modale de déclaration d'une absence.
+ *
+ * Deux usages derrière le même formulaire :
+ * - **pour soi** (`pour-moi`) : l'agent déclare sa propre absence, le champ
+ *   « Agent » disparaît au profit de son identité ;
+ * - **pour un tiers** : un chef ou la RH déclare pour un agent de la liste.
+ *
+ * Le mode « pour soi » s'impose quand l'utilisateur n'a pas `consulter-agents` :
+ * la liste des agents lui est fermée (403), il ne peut déclarer que pour lui.
+ *
+ * Le type sélectionné pilote le motif : obligatoire si `justification_requise`.
  */
-const props = defineProps<{ open: boolean }>();
+const props = withDefaults(defineProps<{ open: boolean; pourMoi?: boolean }>(), { pourMoi: false });
 const emit = defineEmits<{ "update:open": [boolean]; created: [] }>();
 
 const auth = useAuthStore();
@@ -25,10 +33,22 @@ const { data: typesData } = useAsyncData("absence-types-select", () => typesApi.
 const types = computed(() => typesData.value?.data ?? []);
 const typeOptions = computed(() => types.value.map((t) => ({ label: t.nom, value: t.id })));
 
-const { data: agentsData } = useAsyncData("absence-agents-select", () => agentsApi.list());
+/** L'agent est-il imposé (déclaration pour soi) ? */
+const pourSoi = computed(() => props.pourMoi || !auth.can("consulter-agents"));
+
+// Le référentiel agents n'est chargé que si l'utilisateur y a droit — un agent
+// reçoit 403. La condition porte sur la permission, pas sur le mode : les deux
+// modales d'une même page partagent cette clé, et l'une ne doit pas priver
+// l'autre de sa liste.
+const { data: agentsData } = useAsyncData("absence-agents-select", () =>
+  auth.can("consulter-agents") ? agentsApi.list() : Promise.resolve(null),
+);
 const agentOptions = computed(() =>
   (agentsData.value?.data ?? []).map((a) => ({ label: agentNom(a), value: a.id })),
 );
+
+/** Compte connecté sans agent rattaché : il ne peut déclarer pour personne. */
+const sansAgent = computed(() => pourSoi.value && !auth.user?.agent_id);
 
 /** État du formulaire (sans `null` : les contrôles n'acceptent que `string | undefined`). */
 interface AbsenceForm {
@@ -80,14 +100,29 @@ async function onSubmit(event: FormSubmitEvent<AbsenceInput>) {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Déclarer une absence">
+  <UModal v-model:open="open">
     <template #title>
-      <BaseCardTitle icon="i-lucide-user-x" title="Déclarer une absence" />
+      <BaseCardTitle
+        icon="i-lucide-user-x"
+        :title="pourSoi ? 'Déclarer mon absence' : 'Déclarer une absence'"
+      />
     </template>
     <template #body>
-      <UForm :schema="absenceInputSchema" :state="state" class="space-y-4" @submit="onSubmit">
-        <UFormField label="Agent" name="agent_id">
+      <UAlert
+        v-if="sansAgent"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-user-x"
+        title="Aucun agent rattaché à votre compte"
+        description="Votre compte n'est lié à aucun dossier d'agent : vous ne pouvez pas déclarer d'absence pour vous-même."
+      />
+
+      <UForm v-else :schema="absenceInputSchema" :state="state" class="space-y-4" @submit="onSubmit">
+        <UFormField v-if="!pourSoi" label="Agent" name="agent_id">
           <USelectMenu v-model="state.agent_id" value-key="value" :items="agentOptions" placeholder="Sélectionner un agent" class="w-full" />
+        </UFormField>
+        <UFormField v-else label="Agent concerné" name="agent_id">
+          <UInput :model-value="auth.user?.name ?? ''" disabled class="w-full" />
         </UFormField>
 
         <UFormField label="Type d'absence" name="type_absence_id">

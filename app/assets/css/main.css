@@ -48,3 +48,18 @@
 
 /* La chrome applicative est désormais une navbar horizontale claire
  * (cf. components/app/Navbar.vue) : plus de styles sidebar spécifiques. */
+
+/* ---------------------------------------------------------------------------
+ * Fond de l'application
+ * Le fond vit sur `html`/`body`, jamais sur un `div` de layout : un fond posé
+ * sur un div s'arrête à la hauteur de ce div, et tout ce qui dépasse (page
+ * longue, overscroll iOS/macOS) laisse réapparaître le blanc du `body` que
+ * pose Nuxt UI. Cette règle est déclarée après `@import "@nuxt/ui"`, elle
+ * gagne donc sur son `bg-default`.
+ * Teinte dérivée du bleu de marque (`--color-artf-500` = #0F4C81) : on ne
+ * réécrit pas la couleur en dur.
+ * ------------------------------------------------------------------------- */
+html,
+body {
+  background-color: color-mix(in oklab, var(--color-artf-500) 3%, white);
+}

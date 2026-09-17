@@ -33,8 +33,15 @@ describe("statuts agent (CCN art. 76–80)", () => {
   it("stagiaire et archive ne sont pas modifiables par le formulaire (422 API)", () => {
     expect(estStatutAgentModifiable("stagiaire")).toBe(false);
     expect(estStatutAgentModifiable("archive")).toBe(false);
-    expect(estStatutAgentModifiable("disponibilite")).toBe(true);
-    expect(STATUTS_AGENT_MODIFIABLES).toHaveLength(8);
     expect(STATUT_AGENT_MODIFIABLE_OPTIONS.map((o) => o.value)).not.toContain("stagiaire");
+  });
+
+  it("les positions conventionnelles passent par leur écran, pas par le statut (art. 76–80)", () => {
+    // `PUT /integration/agents/{id}` les rejette : 422 « Utiliser POST /carriere/positions ».
+    for (const position of ["detachement", "disponibilite", "position_exceptionnelle", "sous_le_drapeau"]) {
+      expect(estStatutAgentModifiable(position)).toBe(false);
+      expect(STATUT_AGENT_MODIFIABLE_OPTIONS.map((o) => o.value)).not.toContain(position);
+    }
+    expect(STATUTS_AGENT_MODIFIABLES).toEqual(["actif", "inactif", "suspendu", "retraite"]);
   });
 });

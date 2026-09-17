@@ -13,6 +13,13 @@ import type {
  * encore acceptés mais non ciblés). Les bulletins/attestations sont des PDF
  * (blob). Requiert les permissions `consulter-salaires` / `gerer-salaires`.
  */
+/** Réponse de `salaires/actuel` : `data` est `null` pour un agent hors grille. */
+export interface ReponseSalaireActuel {
+  data: SalaireAgent | null;
+  message?: string;
+  meta?: { salaire_fonctionnel?: boolean };
+}
+
 export function useSalairesAgentsApi() {
   const api = useApiClient();
 
@@ -39,8 +46,13 @@ export function useSalairesAgentsApi() {
     byAgent: (agentId: number) =>
       api<ApiCollection<SalaireAgent>>(`/carriere/agents/${agentId}/salaires`),
 
+    /**
+     * Salaire courant. Pour une fonction **hors grille** (DG / DC / DD, art. 55),
+     * l'API renvoie `data: null` et `meta.salaire_fonctionnel: true` : il n'y a
+     * pas de ligne indiciaire, et le bulletin indiciaire n'a pas de sens.
+     */
     actuel: (agentId: number) =>
-      api<ApiResponse<SalaireAgent>>(`/carriere/agents/${agentId}/salaires/actuel`),
+      api<ReponseSalaireActuel>(`/carriere/agents/${agentId}/salaires/actuel`),
 
     historique: (agentId: number) =>
       api<ApiCollection<SalaireAgent>>(`/carriere/agents/${agentId}/salaires/historique`),

@@ -41,8 +41,14 @@ export function structurableLabel(type?: string | null): string {
   return base;
 }
 
-/** Nom affichable d'un agent imbriqué (`nom_complet`, sinon `nom prenom`). */
-export function agentNom(agent?: { nom_complet?: string; nom?: string; prenom?: string } | null): string {
+/**
+ * Nom affichable d'un agent imbriqué (`nom_complet`, sinon `nom prenom`).
+ * Les champs sont acceptés `null` : certaines ressources (module social) les
+ * sérialisent ainsi plutôt qu'absents.
+ */
+export function agentNom(
+  agent?: { nom_complet?: string | null; nom?: string | null; prenom?: string | null } | null,
+): string {
   if (!agent) return "—";
   if (agent.nom_complet) return agent.nom_complet;
   const full = [agent.nom, agent.prenom].filter(Boolean).join(" ");

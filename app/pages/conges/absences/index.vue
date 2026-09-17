@@ -41,6 +41,11 @@ const rows = computed(() =>
 );
 
 const modalOpen = ref(false);
+// Deux entrées pour le même formulaire : pour un agent de la liste, ou pour soi.
+// Inutile de dédoubler quand on ne peut de toute façon déclarer que pour soi.
+const modalPourMoiOpen = ref(false);
+const peutChoisirAgent = computed(() => auth.can("consulter-agents"));
+const peutDeclarerPourMoi = computed(() => peutCreer.value && !!auth.user?.agent_id);
 
 const columns = computed<TableColumn<Absence>[]>(() => {
   const base: TableColumn<Absence>[] = [
@@ -109,6 +114,15 @@ async function confirmerRejet() {
           <USelect v-model="statut" :items="statutItems" class="w-44" />
         </template>
         <template #actions>
+          <UButton
+            v-if="peutDeclarerPourMoi && peutChoisirAgent"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-user-round"
+            @click="modalPourMoiOpen = true"
+          >
+            Déclarer la mienne
+          </UButton>
           <UButton v-if="peutCreer" icon="i-lucide-plus" @click="modalOpen = true">Déclarer une absence</UButton>
         </template>
         <template #empty>
@@ -150,6 +164,7 @@ async function confirmerRejet() {
     </BaseDataState>
 
     <CongesAbsenceModal v-model:open="modalOpen" @created="refresh" />
+    <CongesAbsenceModal v-model:open="modalPourMoiOpen" pour-moi @created="refresh" />
 
     <UModal v-model:open="rejetOpen" title="Rejeter l'absence">
       <template #body>

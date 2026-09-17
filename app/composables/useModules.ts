@@ -2,6 +2,7 @@ import {
   accessibleModules,
   canAccessModule,
   landingRoute,
+  moduleEntry,
   moduleForPath,
   modules,
   visibleNav,
@@ -29,8 +30,11 @@ export function useModules() {
   });
 
   const accessible = computed(() => accessibleModules(ctx()));
-  /** Modules affichés en onglets de la navbar. */
-  const tabs = accessible;
+  /**
+   * Modules affichés en onglets de la navbar. `to` pointe la porte d'entrée
+   * réellement ouverte (cf. `moduleEntry`), pas l'atterrissage théorique.
+   */
+  const tabs = computed(() => accessible.value.map((m) => ({ ...m, to: moduleEntry(m, ctx()) })));
   /** Module courant (résolu depuis la route). */
   const active = computed(() => moduleForPath(route.path));
   /** Sous-onglets du module courant, filtrés par leurs règles de visibilité. */

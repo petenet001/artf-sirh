@@ -2,20 +2,19 @@
 /**
  * Chrome applicative calée sur la maquette de référence :
  * - **navbar** horizontale sticky, blanche, **pleine largeur** ;
- * - **surface de page** : grand panneau centré (max 1600px), arrondi, bordure
- *   fine et fond très légèrement teinté en `primary`, dans lequel vit tout le
- *   contenu. Le fond de la fenêtre, lui, reste blanc.
+ * - **surface de page** : conteneur centré (max 6xl) dans lequel vit tout le
+ *   contenu.
+ * Le fond teinté est posé sur `html`/`body` (assets/css/main.css) et non ici :
+ * sur un div il serait coupé dès que la page dépasse la hauteur d'écran.
  * Toutes les pages authentifiées passent ici ; le login garde le layout `auth`.
  */
 </script>
 
 <template>
-  <div class="min-h-screen bg-default">
+  <div class="min-h-screen">
     <AppNavbar />
-    <div class=" w-full bg-primary/[0.03] h-screen px-4 pb-8 sm:px-6">
-      <main
-        class=" min-h-[calc(100vh-8rem)] mx-auto max-w-6xl px-4 py-8 sm:px-8"
-      >
+    <div class="w-full px-4 pb-8 sm:px-6">
+      <main class="mx-auto min-h-[calc(100vh-8rem)] max-w-6xl px-4 py-8 sm:px-8">
         <slot />
       </main>
     </div>

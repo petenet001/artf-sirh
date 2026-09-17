@@ -9,13 +9,13 @@ describe("administrationSchema", () => {
     description: null,
     localite_id: 5,
     localite: { id: 5, nom: "Conakry" },
-    directions: [{ id: 9, nom: "DRH" }],
+    directions: [{ id: 9, nom: "DRHL" }],
   };
 
   it("valide une administration correcte", () => {
     const parsed = administrationSchema.parse(valid);
     expect(parsed.localite?.id).toBe(5);
-    expect(parsed.directions?.[0]?.nom).toBe("DRH");
+    expect(parsed.directions?.[0]?.nom).toBe("DRHL");
   });
 
   it("accepte une administration minimale", () => {

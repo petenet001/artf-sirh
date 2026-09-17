@@ -5,12 +5,21 @@ import type { TypeConge } from "~/schemas/type-conge";
 import { agentNom } from "~/constants/conges";
 
 /**
- * Modale de soumission d'une demande de congé. Le type sélectionné pilote le
- * formulaire : un justificatif devient obligatoire si `justificatif_requis`
- * (envoi alors en multipart, géré par le repository). L'agent est préréglé sur
- * le compte connecté ; la RH peut choisir un autre agent.
+ * Modale de soumission d'une demande de congé.
+ *
+ * Deux usages derrière le même formulaire :
+ * - **pour soi** (`pour-moi`) : l'agent demande son propre congé, le
+ *   destinataire est son compte et le champ « Agent » disparaît ;
+ * - **pour un tiers** : la RH ou un chef choisit l'agent dans la liste.
+ *
+ * Le mode « pour soi » s'impose de lui-même quand l'utilisateur n'a pas
+ * `consulter-agents` : la liste des agents lui est fermée (403), il ne peut
+ * donc demander que pour lui — autant ne pas afficher un select vide.
+ *
+ * Le type sélectionné pilote le reste : un justificatif devient obligatoire si
+ * `justificatif_requis` (envoi en multipart, géré par le repository).
  */
-const props = defineProps<{ open: boolean }>();
+const props = withDefaults(defineProps<{ open: boolean; pourMoi?: boolean }>(), { pourMoi: false });
 const emit = defineEmits<{ "update:open": [boolean]; created: [] }>();
 
 const auth = useAuthStore();
@@ -26,10 +35,22 @@ const { data: typesData } = useAsyncData("conge-types-select", () => typesApi.li
 const types = computed(() => typesData.value?.data ?? []);
 const typeOptions = computed(() => types.value.map((t) => ({ label: t.nom, value: t.id })));
 
-const { data: agentsData } = useAsyncData("conge-agents-select", () => agentsApi.list());
+/** L'agent est-il imposé (demande pour soi) ? */
+const pourSoi = computed(() => props.pourMoi || !auth.can("consulter-agents"));
+
+// Le référentiel agents n'est chargé que si l'utilisateur y a droit — un agent
+// reçoit 403. La condition porte sur la permission, pas sur le mode : les deux
+// modales d'une même page partagent cette clé, et l'une ne doit pas priver
+// l'autre de sa liste.
+const { data: agentsData } = useAsyncData("conge-agents-select", () =>
+  auth.can("consulter-agents") ? agentsApi.list() : Promise.resolve(null),
+);
 const agentOptions = computed(() =>
   (agentsData.value?.data ?? []).map((a) => ({ label: agentNom(a), value: a.id })),
 );
+
+/** Compte connecté sans agent rattaché : il ne peut demander pour personne. */
+const sansAgent = computed(() => pourSoi.value && !auth.user?.agent_id);
 
 /** État du formulaire (sans `null` : les contrôles n'acceptent que `string | undefined`). */
 interface DemandeForm {
@@ -81,13 +102,25 @@ async function onSubmit(event: FormSubmitEvent<DemandeCongeInput>) {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Nouvelle demande de congé">
+  <UModal v-model:open="open">
     <template #title>
-      <BaseCardTitle icon="i-lucide-file-plus" title="Nouvelle demande de congé" />
+      <BaseCardTitle
+        icon="i-lucide-file-plus"
+        :title="pourSoi ? 'Demander un congé' : 'Nouvelle demande de congé'"
+      />
     </template>
     <template #body>
-      <UForm :schema="demandeCongeInputSchema" :state="state" class="space-y-4" @submit="onSubmit">
-        <UFormField label="Agent" name="agent_id">
+      <UAlert
+        v-if="sansAgent"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-user-x"
+        title="Aucun agent rattaché à votre compte"
+        description="Votre compte n'est lié à aucun dossier d'agent : vous ne pouvez pas déposer de demande pour vous-même."
+      />
+
+      <UForm v-else :schema="demandeCongeInputSchema" :state="state" class="space-y-4" @submit="onSubmit">
+        <UFormField v-if="!pourSoi" label="Agent" name="agent_id">
           <USelectMenu
             v-model="state.agent_id"
             value-key="value"
@@ -95,6 +128,9 @@ async function onSubmit(event: FormSubmitEvent<DemandeCongeInput>) {
             placeholder="Sélectionner un agent"
             class="w-full"
           />
+        </UFormField>
+        <UFormField v-else label="Demandeur" name="agent_id">
+          <UInput :model-value="auth.user?.name ?? ''" disabled class="w-full" />
         </UFormField>
 
         <UFormField label="Type de congé" name="type_conge_id">
@@ -122,11 +158,10 @@ async function onSubmit(event: FormSubmitEvent<DemandeCongeInput>) {
 
         <BaseUploadZone
           v-if="justificatifRequis"
+          v-model="justificatif"
           label="Justificatif (obligatoire)"
           accept="PDF, JPEG, PNG (max 10 Mo)"
           accept-attr="application/pdf,image/*"
-          :file-name="justificatif?.name"
-          @select="justificatif = $event"
         />
 
         <div class="flex justify-end gap-2 pt-2">

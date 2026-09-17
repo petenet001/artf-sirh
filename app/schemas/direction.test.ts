@@ -5,7 +5,7 @@ describe("directionSchema", () => {
   const valid = {
     id: 1,
     nom: "Direction RH",
-    sigle: "DRH",
+    sigle: "DRHL",
     description: null,
     administration_id: 3,
     administration: { id: 3, nom: "Agence" },

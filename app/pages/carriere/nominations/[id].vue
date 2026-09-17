@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { STRUCTURABLE_TYPES } from "~/constants/enums";
 import { structurableLabel, agentNom } from "~/constants/carriere";
+import { essaiOuvert } from "~/constants/positions";
 import { POSTES_NOMINATION, TYPES_ACTE_NOMINATION, type NominationUpdate } from "~/schemas/nomination";
 
 /**
@@ -40,6 +41,18 @@ async function action(fn: () => Promise<unknown>, ok: string) {
 const activer = () => action(() => nominationsApi.activer(id.value), "Nomination activée");
 const cloturer = () => action(() => nominationsApi.cloturer(id.value), "Nomination clôturée");
 const rejeter = () => action(() => nominationsApi.rejeter(id.value), "Nomination rejetée");
+
+// — Essai sur emploi supérieur (CCN art. 50) —————————————————————
+// L'essai n'existe que si la nomination y était soumise ; sa rupture ramène
+// l'agent à son emploi précédent (`nomination_precedente_id`).
+const essai = computed(() => nomination.value?.essai);
+const essaiEnCours = computed(() => essaiOuvert(essai.value));
+const confirmerEssai = () =>
+  action(() => nominationsApi.confirmerEssai(id.value), "Essai confirmé — nomination définitive");
+const rompreEssai = () => {
+  if (!confirm("Rompre l'essai ? L'agent retrouve son emploi précédent.")) return;
+  return action(() => nominationsApi.rompreEssai(id.value), "Essai rompu");
+};
 
 const peutRejeter = computed(() => ["en_attente", "approuvee"].includes(statut.value));
 const peutActe = computed(() => !["en_attente"].includes(statut.value));
@@ -139,6 +152,26 @@ async function telechargerActe() {
             >
               Clôturer
             </UButton>
+            <UButton
+              v-if="essaiEnCours"
+              icon="i-lucide-check"
+              color="success"
+              variant="soft"
+              :loading="busy"
+              @click="confirmerEssai"
+            >
+              Confirmer l'essai
+            </UButton>
+            <UButton
+              v-if="essaiEnCours"
+              icon="i-lucide-undo-2"
+              color="error"
+              variant="soft"
+              :loading="busy"
+              @click="rompreEssai"
+            >
+              Rompre l'essai
+            </UButton>
             <UButton v-if="peutRejeter" icon="i-lucide-x" color="error" variant="soft" :loading="busy" @click="rejeter">
               Rejeter
             </UButton>
@@ -169,6 +202,9 @@ async function telechargerActe() {
               <BaseDefItem label="Type d'acte" :value="nomination.type_acte_label ?? nomination.type_acte" />
               <BaseDefItem label="Date de début" :value="formatDateLong(nomination.date_debut)" />
               <BaseDefItem label="Date de fin" :value="formatDateLong(nomination.date_fin)" />
+              <BaseDefItem v-if="essai" label="Période d'essai (art. 50)" class="sm:col-span-2">
+                <PositionsEssaiBadge :essai="essai" />
+              </BaseDefItem>
             </dl>
           </div>
 

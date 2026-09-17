@@ -324,7 +324,7 @@ si un besoin manque, on étend la primitive.
 | `BaseRowActions` | Fin de ligne : œil / crayon / corbeille |
 | `BaseStepperForm` | Formulaire long : étapes en **onglets à icônes soulignés**, actions groupées en bas à droite (Précédent / Annuler / Suivant / Enregistrer) |
 | `BasePhotoField` | Emplacement photo carré des formulaires d'identité |
-| `BaseUploadZone` | Dépôt de fichier en pointillés (glisser-déposer + formats acceptés) |
+| `BaseUploadZone` | Dépôt de fichier en pointillés (`UFileUpload` : glisser-déposer, formats acceptés, aperçu du fichier). `v-model` si l'appelant garde le fichier, `@select` + `auto-reset` s'il le dépose aussitôt |
 | `BaseProfileHeader` | Carte d'en-tête de fiche : portrait, identité, méta, action principale |
 | `BaseSideNav` | Colonne de sections d'une fiche (entrée active en plein `primary`) |
 | `BaseDefItem` | Couple libellé/valeur des fiches : libellé discret au-dessus, séparateur fin |

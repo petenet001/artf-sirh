@@ -13,6 +13,19 @@ import { agentNom, STATUT_DEMANDE_LABEL, type EtapeConge } from "~/constants/con
 const auth = useAuthStore();
 const { demandes, scope, pending, error, refresh } = useDemandesConge();
 
+// Cartes de tête : compteurs globaux (vue RH). `par_statut` couvre les 8 statuts
+// de l'enum, y compris ceux à zéro.
+const congesApi = useDemandesCongeApi();
+const peutVoirStats = computed(() => auth.can("valider-conges") || auth.hasRole("rh") || auth.hasRole("admin"));
+const { data: statsData } = useAsyncData("conges-statistiques", () =>
+  peutVoirStats.value ? congesApi.statistiques() : Promise.resolve(null),
+);
+const stats = computed(() => statsData.value?.data ?? null);
+const enAttente = computed(() => {
+  const s = stats.value?.par_statut ?? {};
+  return (s.soumise ?? 0) + (s.validee_n1 ?? 0) + (s.validee_rh ?? 0);
+});
+
 const peutValider = computed(() => auth.can("valider-conges"));
 const peutVoirToutes = computed(() => peutValider.value || auth.hasRole("rh") || auth.hasRole("admin"));
 const peutCreer = computed(() => auth.can("creer-conges"));
@@ -40,6 +53,10 @@ const ETAPE_LABEL: Record<EtapeConge, string> = {
 };
 
 const modalOpen = ref(false);
+// Deux entrées pour le même formulaire : pour un agent de la liste, ou pour soi.
+const modalPourMoiOpen = ref(false);
+const peutChoisirAgent = computed(() => auth.can("consulter-agents"));
+const peutDemanderPourMoi = computed(() => peutCreer.value && !!auth.user?.agent_id);
 
 const columns: TableColumn<DemandeConge>[] = [
   { id: "agent", header: "Agent", accessorFn: (d) => agentNom(d.agent), cell: ({ row }) => agentNom(row.original.agent) },
@@ -56,6 +73,17 @@ const columns: TableColumn<DemandeConge>[] = [
 
 <template>
   <BasePanel title="Demandes de congé" subtitle="Suivi et validation des demandes">
+    <div v-if="stats" class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <BaseStatCard label="Demandes" :value="stats.total" icon="i-lucide-file-text" />
+      <BaseStatCard
+        label="En cours de circuit"
+        :value="enAttente"
+        icon="i-lucide-clock"
+        hint="Soumises ou en attente d'une signature"
+      />
+      <BaseStatCard label="Jours accordés" :value="stats.jours_accordes" icon="i-lucide-palmtree" />
+    </div>
+
     <!-- Pas d'état « vide » global : la table reste visible pour garder le
          sélecteur de portée et le bouton de création. -->
     <BaseDataState :pending="pending" :error="error">
@@ -72,6 +100,15 @@ const columns: TableColumn<DemandeConge>[] = [
           <USelect v-model="statut" :items="statutItems" class="w-48" />
         </template>
         <template #actions>
+          <UButton
+            v-if="peutDemanderPourMoi && peutChoisirAgent"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-user-round"
+            @click="modalPourMoiOpen = true"
+          >
+            Pour moi
+          </UButton>
           <UButton v-if="peutCreer" icon="i-lucide-plus" @click="modalOpen = true">Nouvelle demande</UButton>
         </template>
         <template #empty>
@@ -91,5 +128,6 @@ const columns: TableColumn<DemandeConge>[] = [
     </BaseDataState>
 
     <CongesDemandeModal v-model:open="modalOpen" @created="refresh" />
+    <CongesDemandeModal v-model:open="modalPourMoiOpen" pour-moi @created="refresh" />
   </BasePanel>
 </template>

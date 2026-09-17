@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { agentSummarySchema } from "~/schemas/agent-summary";
 import { validationWorkflowSchema } from "~/schemas/validation-workflow";
-import { STRUCTURABLE_TYPES } from "~/constants/enums";
+import { STRUCTURABLE_TYPES, MOTIFS_AFFECTATION } from "~/constants/enums";
 
 /** Affectation d'un agent à une structure. Forme renvoyée par AffectationResource. */
 export const affectationSchema = z.object({
@@ -13,6 +13,14 @@ export const affectationSchema = z.object({
   structurable_type: z.string().nullable().optional(),
   structurable_id: z.number().nullable().optional(),
   motif: z.string().nullable().optional(),
+  /**
+   * Motif codifié (art. 81–82). `rapprochement_conjoints` impose quatre pièces
+   * et n'ouvre **aucun** accord automatique : l'opportunité reste appréciée.
+   */
+  motif_code: z.enum(MOTIFS_AFFECTATION).nullable().optional(),
+  commentaire_opportunite: z.string().nullable().optional(),
+  /** Pièces déposées au titre du rapprochement, par code de pièce. */
+  pieces_rapprochement: z.record(z.string(), z.unknown()).nullable().optional(),
   note_service: z.string().nullable().optional(),
   note_service_nom_original: z.string().nullable().optional(),
   date_affectation: z.string().nullable().optional(),
@@ -70,6 +78,14 @@ export const lotAffectationSchema = z.object({
   id: z.number(),
   date_affectation: z.string().nullable().optional(),
   motif: z.string().nullable().optional(),
+  /**
+   * Motif codifié (art. 81–82). `rapprochement_conjoints` impose quatre pièces
+   * et n'ouvre **aucun** accord automatique : l'opportunité reste appréciée.
+   */
+  motif_code: z.enum(MOTIFS_AFFECTATION).nullable().optional(),
+  commentaire_opportunite: z.string().nullable().optional(),
+  /** Pièces déposées au titre du rapprochement, par code de pièce. */
+  pieces_rapprochement: z.record(z.string(), z.unknown()).nullable().optional(),
   note_service: z.string().nullable().optional(),
   note_service_nom_original: z.string().nullable().optional(),
   statut: z.string().nullable().optional(),

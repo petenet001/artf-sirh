@@ -152,11 +152,10 @@ async function supprimer(doc: DocumentAgent) {
             </UFormField>
           </div>
           <BaseUploadZone
+            v-model="fichier"
             label="Fichier"
             accept="PDF, JPEG, PNG (max 10 Mo)"
             accept-attr="application/pdf,image/*"
-            :file-name="fichier?.name"
-            @select="fichier = $event"
           />
           <div class="flex justify-end gap-2 pt-2">
             <UButton color="neutral" variant="ghost" @click="open = false">Annuler</UButton>

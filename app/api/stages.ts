@@ -31,6 +31,17 @@ export function useStagesApi() {
         body: payload,
       }),
 
+    /**
+     * Ouvre un dossier d'intégration « Recrutement externe » en brouillon sur
+     * l'agent du stage (CCN, D.4). Le stage doit être **clôturé** ; un second
+     * appel renvoie 422. Le wizard d'intégration prend ensuite le relais.
+     */
+    convertirAgent: (id: number) =>
+      api<ApiResponse<ConventionStage>>(`/integration/stages/${id}/convertir-agent`, {
+        method: "POST",
+        body: {},
+      }),
+
     attestation: (id: number) =>
       api<Blob>(`/integration/stages/${id}/attestation`, { responseType: "blob" }),
   };

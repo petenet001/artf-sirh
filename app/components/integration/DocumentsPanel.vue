@@ -116,9 +116,6 @@ function addRow(typeId?: number, obligatoire = false) {
 function removeRow(key: number) {
   rows.value = rows.value.filter((r) => r.key !== key);
 }
-function onRowFile(row: UploadRow, event: Event) {
-  row.file = (event.target as HTMLInputElement).files?.[0] ?? null;
-}
 /** Depuis une pièce manquante : prépare une ligne d'upload pré-remplie. */
 function preparerDepot(ligne: LignePiece) {
   if (!rows.value.some((r) => r.typeId === ligne.typeId && !r.file)) {
@@ -279,20 +276,21 @@ v-model="row.typeId"
               placeholder="Type de pièce"
               class="w-full"
             />
-            <label
-              class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-default bg-default px-3 py-2 text-sm hover:border-primary/60"
-            >
-              <UIcon name="i-lucide-paperclip" class="size-4 text-muted" />
-              <span class="max-w-[12rem] truncate" :class="row.file ? 'text-highlighted' : 'text-muted'">
-                {{ row.file?.name ?? "Choisir un fichier" }}
-              </span>
-              <input
-                type="file"
-                class="sr-only"
-                accept=".pdf,.jpg,.jpeg,.png"
-                @change="onRowFile(row, $event)"
-              >
-            </label>
+            <UFileUpload v-model="row.file" accept=".pdf,.jpg,.jpeg,.png">
+              <template #default="{ open }">
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-paperclip"
+                  class="max-w-56 justify-start font-normal"
+                  @click="open()"
+                >
+                  <span class="truncate" :class="row.file ? 'text-highlighted' : 'text-muted'">
+                    {{ row.file?.name ?? "Choisir un fichier" }}
+                  </span>
+                </UButton>
+              </template>
+            </UFileUpload>
             <USwitch v-model="row.obligatoire" label="Oblig." />
             <UButton
               icon="i-lucide-x"

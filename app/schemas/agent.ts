@@ -31,9 +31,18 @@ export const agentSchema = personneSchema.extend({
   rib_bancaire: z.string().nullable().optional(),
   statut: z.enum(STATUTS_AGENT).default("actif"),
   date_prise_service: z.string().nullable().optional(),
+  /**
+   * Fonction hors grille (DG / DC / DD, art. 55) : rémunération fonctionnelle,
+   * sans ligne indiciaire ni bulletin indiciaire. Dérivé de la nomination
+   * active, sinon de la fonction.
+   */
+  hors_grille: z.boolean().optional(),
   // Archivage (vie courante) : posés à l'archivage, remis à null au désarchivage.
   archived_at: z.string().nullable().optional(),
   motif_archivage: z.string().nullable().optional(),
+  /** Motif codifié de sortie et priorité de réembauche associée (art. 48). */
+  motif_archivage_code: z.string().nullable().optional(),
+  prioritaire_reembauche_jusquau: z.string().nullable().optional(),
 
   grade_id: z.number().nullable().optional(),
   grade: gradeSchema.optional(),

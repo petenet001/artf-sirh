@@ -18,6 +18,11 @@ export const diplomeSchema = z.object({
   description: z.string().nullable().optional(),
   classegrillesalariale_id: z.number().nullable().optional(),
   classe_grille: classeGrilleResumeSchema.nullable().optional(),
+  /**
+   * Bonification d'échelons à l'entrée (annexe 1) : +1 pour BEP, Licence,
+   * Bachelor, Master, DESS, DSENAM, MBA ; +2 pour un doctorat.
+   */
+  bonification_echelons: z.coerce.number().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
@@ -29,6 +34,8 @@ export const diplomeInputSchema = z.object({
   nom: z.string().min(1),
   sigle: z.string().nullish(),
   description: z.string().nullish(),
+  classegrillesalariale_id: z.number().nullish(),
+  bonification_echelons: z.coerce.number().min(0).max(12).nullish(),
 });
 
 export type DiplomeInput = z.infer<typeof diplomeInputSchema>;

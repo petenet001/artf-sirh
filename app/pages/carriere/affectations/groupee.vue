@@ -41,10 +41,6 @@ function removeLigne(key: number) {
 addLigne();
 addLigne();
 
-function onFile(event: Event) {
-  noteService.value = (event.target as HTMLInputElement).files?.[0] ?? null;
-}
-
 const submitting = ref(false);
 async function submit() {
   const pretes = lignes.value.filter((l) => l.agentId && l.structurable_id);
@@ -92,15 +88,21 @@ async function submit() {
             <UInput v-model="dateAffectation" type="date" class="w-full" />
           </UFormField>
           <UFormField label="Note de service (PDF/JPG/PNG)">
-            <label
-              class="inline-flex w-full cursor-pointer items-center gap-2 rounded-lg border border-default bg-default px-3 py-2 text-sm hover:border-primary/60"
-            >
-              <UIcon name="i-lucide-paperclip" class="size-4 text-muted" />
-              <span class="truncate" :class="noteService ? 'text-highlighted' : 'text-muted'">
-                {{ noteService?.name ?? "Choisir un fichier (optionnel)" }}
-              </span>
-              <input type="file" class="sr-only" accept=".pdf,.jpg,.jpeg,.png" @change="onFile">
-            </label>
+            <UFileUpload v-model="noteService" accept=".pdf,.jpg,.jpeg,.png" class="w-full">
+              <template #default="{ open }">
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-paperclip"
+                  class="w-full justify-start font-normal"
+                  @click="open()"
+                >
+                  <span class="truncate" :class="noteService ? 'text-highlighted' : 'text-muted'">
+                    {{ noteService?.name ?? "Choisir un fichier (optionnel)" }}
+                  </span>
+                </UButton>
+              </template>
+            </UFileUpload>
           </UFormField>
           <UFormField label="Motif" class="sm:col-span-2">
             <UTextarea v-model="motif" :rows="2" class="w-full" />

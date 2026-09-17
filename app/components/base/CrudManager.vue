@@ -127,6 +127,11 @@ const asBool = (v: unknown): boolean => v === true;
 // Les selects (clés étrangères) gardent leur valeur brute (souvent un `number`).
 const asSelectValue = (v: unknown): string | number | undefined =>
   typeof v === "number" || typeof v === "string" ? v : undefined;
+// Slots à retransmettre à la table : tous ceux du consommateur, sauf la colonne
+// d'actions que cette primitive rend elle-même.
+const slots = useSlots();
+const slotsTransmis = computed(() => Object.keys(slots).filter((name) => name !== "actions-cell"));
+
 const search = computed<string | undefined>({
   get: () => asString(filters.nom),
   set: (v) => {
@@ -152,6 +157,13 @@ const search = computed<string | undefined>({
       :empty-label="`Aucun ${entityLabel.toLowerCase()}`"
     >
       <BaseTable :data="items" :columns="columns">
+        <!-- Slots de colonne du consommateur (`#<col>-cell`) transmis tels
+             quels : une page peut ainsi rendre une cellule à sa façon sans
+             renoncer au CRUD. `actions-cell` reste à nous (édition/suppression). -->
+        <template v-for="name in slotsTransmis" :key="name" #[name]="slotProps">
+          <slot :name="name" v-bind="slotProps ?? {}" />
+        </template>
+
         <template #actions-cell="{ row }">
           <div class="flex justify-end gap-1">
             <UButton

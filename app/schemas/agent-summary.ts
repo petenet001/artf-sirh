@@ -26,6 +26,14 @@ export const agentSummarySchema = z.object({
   numero_cnss: z.string().nullable().optional(),
   rib_bancaire: z.string().nullable().optional(),
   statut: z.enum(STATUTS_AGENT).optional(),
+  /**
+   * Fonction hors grille (DG / DC / DD, art. 55) : pas de ligne indiciaire,
+   * un salaire fonctionnel. Dérivé de la nomination active, sinon de la fonction.
+   */
+  hors_grille: z.boolean().optional(),
+  /** Motif codifié d'archivage (art. 48) et priorité de réembauche associée. */
+  motif_archivage_code: z.string().nullable().optional(),
+  prioritaire_reembauche_jusquau: z.string().nullable().optional(),
   date_prise_service: z.string().nullable().optional(),
   grade_id: z.number().nullable().optional(),
   categorie_id: z.number().nullable().optional(),

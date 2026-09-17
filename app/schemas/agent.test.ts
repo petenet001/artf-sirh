@@ -83,12 +83,15 @@ describe("agentSchema", () => {
     ).toThrow();
   });
 
-  it("agentUpdateSchema : positions CCN acceptées, stagiaire / archive refusés, statut omissible", () => {
+  it("agentUpdateSchema : seuls les statuts hors parcours dédié, statut omissible", () => {
     const base = { nom: "Diallo", prenom: "Awa", date_naissance: "1990-05-12", genre: "F" as const };
-    expect(agentUpdateSchema.parse({ ...base, statut: "disponibilite" }).statut).toBe("disponibilite");
-    expect(agentUpdateSchema.parse({ ...base, statut: "sous_le_drapeau" }).statut).toBe("sous_le_drapeau");
+    expect(agentUpdateSchema.parse({ ...base, statut: "suspendu" }).statut).toBe("suspendu");
+    expect(agentUpdateSchema.parse({ ...base, statut: "retraite" }).statut).toBe("retraite");
     expect(() => agentUpdateSchema.parse({ ...base, statut: "stagiaire" })).toThrow();
     expect(() => agentUpdateSchema.parse({ ...base, statut: "archive" })).toThrow();
+    // Positions CCN art. 76–80 : le service les rejette (POST /carriere/positions).
+    expect(() => agentUpdateSchema.parse({ ...base, statut: "disponibilite" })).toThrow();
+    expect(() => agentUpdateSchema.parse({ ...base, statut: "sous_le_drapeau" })).toThrow();
     expect(agentUpdateSchema.parse(base).statut).toBeUndefined();
   });
 

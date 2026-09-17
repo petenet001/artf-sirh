@@ -2,6 +2,7 @@ import { z } from "zod";
 import { agentSummarySchema } from "~/schemas/agent-summary";
 import { affectationSchema } from "~/schemas/affectation";
 import { validationWorkflowSchema } from "~/schemas/validation-workflow";
+import { essaiSchema } from "~/schemas/essai";
 import { STRUCTURABLE_TYPES, TYPES_ACTE_NOMINATION } from "~/constants/enums";
 
 /** Postes nominables (Nomination/CreateRequest). Cohérence poste ↔ structure. */
@@ -42,6 +43,13 @@ export const nominationSchema = z.object({
   statut: z.string().nullable().optional(),
   /** Libellé lisible fourni par l'API (StatutNomination::label). */
   statut_label: z.string().nullable().optional(),
+  /** Emploi supérieur soumis à essai (CCN art. 50). */
+  soumis_a_essai: z.boolean().optional(),
+  classegrillesalariale_id: z.number().nullable().optional(),
+  /** Nomination à laquelle revenir si l'essai est rompu (art. 50). */
+  nomination_precedente_id: z.number().nullable().optional(),
+  /** Bloc essai — présent seulement si la nomination y est soumise. */
+  essai: essaiSchema.optional(),
   validations: z.array(validationWorkflowSchema).optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),

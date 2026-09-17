@@ -10,15 +10,15 @@ describe("circuitValidationSchema", () => {
   const valid = {
     id: 1,
     type_integration_id: 2,
-    niveau: "drh",
-    niveau_label: "DRH",
+    niveau: "DRHL",
+    niveau_label: "DRHL",
     ordre: 1,
     actif: true,
   };
 
   it("valide une étape de circuit correcte", () => {
     const parsed = circuitValidationSchema.parse(valid);
-    expect(parsed.niveau).toBe("drh");
+    expect(parsed.niveau).toBe("DRHL");
     expect(parsed.actif).toBe(true);
   });
 
@@ -32,7 +32,7 @@ describe("circuitValidationSchema", () => {
   });
 
   it("remplacer attend un tableau de niveaux", () => {
-    const parsed = circuitRemplacerSchema.parse({ niveaux: ["chef_service", "drh"] });
+    const parsed = circuitRemplacerSchema.parse({ niveaux: ["chef_service", "DRHL"] });
     expect(parsed.niveaux).toHaveLength(2);
     expect(() => circuitRemplacerSchema.parse({ niveaux: ["inconnu"] })).toThrow();
   });

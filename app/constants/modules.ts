@@ -95,6 +95,7 @@ export const modules: AppModule[] = [
       [
         { label: "Agents", icon: "i-lucide-user-check", to: "/personnel/agents" },
         { label: "Stagiaires", icon: "i-lucide-graduation-cap", to: "/personnel/stagiaires" },
+        { label: "Conventions de stage", icon: "i-lucide-file-badge", to: "/personnel/stages" },
       ],
     ],
   },
@@ -121,16 +122,29 @@ export const modules: AppModule[] = [
     icon: "i-lucide-briefcase",
     to: "/carriere/affectations",
     match: ["/carriere"],
-    // Actes RH (affectations/nominations/contrats/salaires) → réservé au métier
-    // RH + admin. La hiérarchie consulte la carrière depuis la fiche agent.
-    gate: { anyPermission: ["gerer-nominations", "consulter-recrutement"] },
+    // Actes RH (affectations/nominations/contrats) → métier RH + admin. Le
+    // module s'ouvre en plus à `consulter-salaires` pour les reclassements
+    // (art. 73–75), que le DG approuve : `navGates` lui réserve ce seul onglet.
+    gate: { anyPermission: ["gerer-nominations", "consulter-recrutement", "consulter-salaires"] },
     nav: [
       [
         { label: "Affectations", icon: "i-lucide-map-pin", to: "/carriere/affectations" },
         { label: "Nominations", icon: "i-lucide-award", to: "/carriere/nominations" },
         { label: "Postes vacants", icon: "i-lucide-user-search", to: "/carriere/postes-vacants" },
+        { label: "Reclassements", icon: "i-lucide-arrow-up-narrow-wide", to: "/carriere/reclassements" },
+        { label: "Positions", icon: "i-lucide-user-cog", to: "/carriere/positions" },
+        { label: "Contrats", icon: "i-lucide-file-signature", to: "/carriere/contrats" },
       ],
     ],
+    navGates: {
+      "/carriere/affectations": { anyPermission: ["gerer-nominations", "consulter-recrutement"] },
+      "/carriere/nominations": { anyPermission: ["gerer-nominations", "consulter-recrutement"] },
+      "/carriere/postes-vacants": { anyPermission: ["gerer-nominations", "consulter-recrutement"] },
+      // Reclassements et positions : le DG y siège au titre de `consulter-salaires`.
+      "/carriere/reclassements": { anyPermission: ["consulter-salaires"] },
+      "/carriere/positions": { anyPermission: ["consulter-salaires"] },
+      "/carriere/contrats": { anyPermission: ["consulter-contrats"] },
+    },
   },
   {
     key: "conges",
@@ -158,17 +172,121 @@ export const modules: AppModule[] = [
     },
   },
   {
+    key: "evaluations",
+    label: "Évaluations",
+    description: "Notation annuelle, avis hiérarchiques et avancement (CCN art. 62–70).",
+    icon: "i-lucide-clipboard-check",
+    // Atterrissage volontairement sur « Mes évaluations » : tout agent a
+    // `consulter-evaluations`, l'écran le plus universel est donc le sien.
+    to: "/evaluations/mes-evaluations",
+    match: ["/evaluations"],
+    gate: { anyPermission: ["consulter-evaluations"] },
+    nav: [
+      [
+        { label: "Mes évaluations", icon: "i-lucide-user-round-check", to: "/evaluations/mes-evaluations" },
+        { label: "À noter", icon: "i-lucide-pencil-line", to: "/evaluations/a-noter" },
+        { label: "Sessions", icon: "i-lucide-calendar-range", to: "/evaluations/sessions" },
+        { label: "Validation RH", icon: "i-lucide-shield-check", to: "/evaluations/validation-rh" },
+        { label: "Tableau & commissions", icon: "i-lucide-gavel", to: "/evaluations/tableau" },
+        { label: "Bonifications", icon: "i-lucide-rocket", to: "/evaluations/bonifications" },
+        { label: "Grille de critères", icon: "i-lucide-list-checks", to: "/evaluations/criteres" },
+      ],
+    ],
+    // ⚠️ `valider-evaluations` est détenu par **tous les chefs** (seeder) : il
+    // ouvre la file de notation, jamais les écrans RH — ceux-là se gatent sur
+    // le rôle (`rh`/`admin`) ou sur `creer-evaluations`, propre à la DRHLL.
+    navGates: {
+      "/evaluations/a-noter": { anyPermission: ["valider-evaluations"] },
+      "/evaluations/sessions": { anyPermission: ["creer-evaluations"] },
+      "/evaluations/validation-rh": { anyRole: ["rh", "admin"] },
+      // Commissions : le DG y siège (art. 68–70) et propose les exceptionnels.
+      "/evaluations/tableau": { anyRole: ["rh", "admin", "directeur-general"] },
+      "/evaluations/bonifications": { anyRole: ["rh", "admin", "directeur-general"] },
+      "/evaluations/criteres": { anyPermission: ["creer-evaluations"] },
+    },
+  },
+  {
+    key: "discipline",
+    label: "Discipline",
+    description: "Rapports, instruction et sanctions (CCN art. 90–91).",
+    icon: "i-lucide-shield-alert",
+    to: "/discipline/dossiers",
+    match: ["/discipline"],
+    // Quatre permissions distinctes, une par rôle du circuit : les chefs
+    // proposent, la RH instruit, le DG prononce. L'agent concerné n'en a
+    // aucune : son self-service vit dans Mon espace, pas ici.
+    gate: {
+      anyPermission: [
+        "consulter-discipline",
+        "proposer-discipline",
+        "prononcer-discipline",
+        "gerer-discipline",
+      ],
+    },
+    nav: [
+      [
+        { label: "Dossiers", icon: "i-lucide-file-warning", to: "/discipline/dossiers" },
+        { label: "Avertissements", icon: "i-lucide-message-square-warning", to: "/discipline/avertissements" },
+        { label: "Types de sanction", icon: "i-lucide-list", to: "/discipline/types-sanctions" },
+      ],
+    ],
+    navGates: {
+      "/discipline/avertissements": { anyPermission: ["consulter-discipline"] },
+      // Lecture ouverte aux proposants : un chef doit voir les types pour rédiger son rapport.
+      "/discipline/types-sanctions": { anyPermission: ["gerer-discipline", "proposer-discipline"] },
+    },
+  },
+  {
+    key: "affaires-sociales",
+    label: "Affaires sociales",
+    description: "Organismes, affiliations et ayants droit (CCN art. 58–59).",
+    icon: "i-lucide-heart-handshake",
+    to: "/affaires-sociales/affiliations",
+    match: ["/affaires-sociales"],
+    // P1 : pas de self-service agent, et les chefs n'ont pas le menu.
+    gate: { anyPermission: ["consulter-affaires-sociales"] },
+    nav: [
+      [
+        { label: "Affiliations", icon: "i-lucide-id-card", to: "/affaires-sociales/affiliations" },
+        { label: "Ayants droit", icon: "i-lucide-users", to: "/affaires-sociales/ayants-droit" },
+        { label: "Organismes", icon: "i-lucide-building", to: "/affaires-sociales/organismes" },
+      ],
+    ],
+  },
+  {
+    key: "formations",
+    label: "Formation",
+    description: "Catalogue, plan annuel, inscriptions et certifications (art. 92–104).",
+    icon: "i-lucide-book-open",
+    to: "/formations/catalogue",
+    match: ["/formations"],
+    gate: { anyPermission: ["consulter-formations"] },
+    nav: [
+      [
+        { label: "Catalogue", icon: "i-lucide-library", to: "/formations/catalogue" },
+        { label: "Plan annuel", icon: "i-lucide-calendar-check", to: "/formations/plans" },
+        { label: "Inscriptions", icon: "i-lucide-user-plus", to: "/formations/inscriptions" },
+        { label: "Certifications", icon: "i-lucide-award", to: "/formations/certifications" },
+      ],
+    ],
+  },
+  {
     key: "remuneration",
     label: "Rémunération",
-    description: "Grille salariale et salaires des agents.",
+    description: "Grille salariale, salaires des agents et paie mensuelle.",
     icon: "i-lucide-banknote",
     to: "/remuneration/grille",
-    match: ["/remuneration"],
-    gate: { anyPermission: ["consulter-salaires"] },
+    match: ["/remuneration", "/paie"],
+    // `consulter-salaires` a été accordé au DG pour les reclassements : gater
+    // dessus ouvrirait la grille et les salaires de tous les agents. Le module
+    // reste donc au métier RH ; le DG passe par Carrière > Reclassements.
+    gate: { anyRole: ["rh", "admin"] },
     nav: [
       [
         { label: "Grille salariale", icon: "i-lucide-table-2", to: "/remuneration/grille" },
         { label: "Salaires agents", icon: "i-lucide-wallet", to: "/remuneration/salaires" },
+        { label: "Éléments de paie", icon: "i-lucide-list-plus", to: "/paie/elements" },
+        { label: "Lots de paie", icon: "i-lucide-banknote", to: "/paie/lots" },
       ],
     ],
   },
@@ -273,10 +391,31 @@ export function moduleForPath(path: string): AppModule | undefined {
 }
 
 /**
+ * Porte d'entrée **réellement ouverte** d'un module : sa route d'atterrissage
+ * si l'utilisateur y a droit, sinon le premier sous-onglet qu'il voit.
+ *
+ * Nécessaire depuis qu'un module peut être ouvert par une permission qui ne
+ * donne pas accès à son onglet par défaut — le DG entre dans Carrière par
+ * `consulter-salaires`, mais seul l'onglet Reclassements lui est visible :
+ * l'envoyer sur `/carriere/affectations` le mettrait face à un 403.
+ */
+export function moduleEntry(m: AppModule, ctx: AccessContext): string {
+  const visibles = visibleNav(m, ctx).flat();
+  const atterrissageVisible = visibles.some((i) => i.to === m.to);
+  if (atterrissageVisible || !visibles.length) return m.to;
+
+  const premier = visibles.find((i) => typeof i.to === "string")
+    ?? visibles.flatMap((i) => i.children ?? []).find((i) => typeof i.to === "string");
+
+  return (premier?.to as string | undefined) ?? m.to;
+}
+
+/**
  * Route d'atterrissage après connexion : le premier module accessible. Le
  * module d'accueil n'ayant pas de `gate`, tout le monde atterrit sur son
  * espace ; les modules métier restent à un onglet de distance.
  */
 export function landingRoute(ctx: AccessContext): string {
-  return accessibleModules(ctx)[0]?.to ?? "/mon-espace";
+  const premier = accessibleModules(ctx)[0];
+  return premier ? moduleEntry(premier, ctx) : "/mon-espace";
 }

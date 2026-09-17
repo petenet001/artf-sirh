@@ -58,6 +58,18 @@ export function useNominationsApi() {
         method: "POST",
       }),
 
+    // — Essai sur emploi supérieur (CCN art. 50) ——————————————————
+    /** Essai concluant : la nomination devient définitive. */
+    confirmerEssai: (id: number) =>
+      api<ApiResponse<Nomination>>(`/carriere/nominations/${id}/confirmer-essai`, { method: "POST", body: {} }),
+
+    /** Rupture : l'agent retrouve son emploi précédent (`nomination_precedente_id`). */
+    rompreEssai: (id: number, payload?: { commentaire?: string | null }) =>
+      api<ApiResponse<Nomination>>(`/carriere/nominations/${id}/rompre-essai`, {
+        method: "POST",
+        body: payload ?? {},
+      }),
+
     rejeter: (id: number) =>
       api<ApiResponse<Nomination>>(`/carriere/nominations/${id}/rejeter`, {
         method: "POST",

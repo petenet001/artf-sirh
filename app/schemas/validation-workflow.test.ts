@@ -8,7 +8,7 @@ import {
 describe("validationWorkflowSchema", () => {
   const valid = {
     id: 1,
-    niveau: "drh",
+    niveau: "DRHL",
     ordre: 2,
     statut: "en_attente",
   };
@@ -16,7 +16,7 @@ describe("validationWorkflowSchema", () => {
   it("valide une étape correcte", () => {
     const parsed = validationWorkflowSchema.parse(valid);
     expect(parsed.id).toBe(1);
-    expect(parsed.niveau).toBe("drh");
+    expect(parsed.niveau).toBe("DRHL");
   });
 
   it("rejette un niveau invalide", () => {

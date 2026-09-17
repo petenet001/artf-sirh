@@ -29,6 +29,11 @@ export const dossierIntegrationSchema = z.object({
   validations: z.array(validationWorkflowSchema).optional(),
   actes: z.array(acteAdministratifSchema).optional(),
   historique: z.array(historiqueIntegrationSchema).optional(),
+  /**
+   * L'agent était déjà salarié ailleurs : dispense des pièces du premier
+   * emploi et ouvre la reprise de son immatriculation CNSS (art. 46–47).
+   */
+  deja_salarie: z.boolean().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });

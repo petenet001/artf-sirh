@@ -27,6 +27,8 @@ const handleError = useApiError();
 
 // Écriture vie courante réservée au métier RH (comme le reste de Personnel).
 const canEdit = computed(() => auth.can("modifier-agents"));
+// Reclassements (art. 73–75) : même permission de lecture que l'API.
+const peutVoirReclassements = computed(() => auth.can("consulter-salaires"));
 // `archived_at` (posé à l'archivage, remis à null au désarchivage) est le signal
 // fiable : le statut « archive » côté API ne fait pas partie des statuts éditables.
 const estArchive = computed(() => !!agent.value?.archived_at);
@@ -80,6 +82,13 @@ const sections: SideNavItem[] = [
   { key: "documents", label: "Documents", icon: "i-lucide-folder" },
   { key: "carriere", label: "Carrière", icon: "i-lucide-briefcase" },
   { key: "engagements", label: "Situation administrative", icon: "i-lucide-building-2" },
+  // Le dossier disciplinaire n'est visible que de la RH / du DG (art. 91).
+  ...(auth.can("consulter-discipline")
+    ? [{ key: "discipline", label: "Discipline", icon: "i-lucide-shield-alert" }]
+    : []),
+  ...(auth.can("consulter-affaires-sociales")
+    ? [{ key: "social", label: "Dossier social", icon: "i-lucide-heart-handshake" }]
+    : []),
 ];
 const section = ref("infos");
 
@@ -236,12 +245,38 @@ async function onDelete() {
             />
 
             <!-- Carrière -->
-            <dl v-else-if="section === 'carriere'" class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
-              <BaseDefItem label="Grade" :value="agent.grade?.nom" />
-              <BaseDefItem label="Catégorie" :value="agent.categorie?.nom" />
-              <BaseDefItem label="Échelon" :value="agent.echelon?.nom" />
-              <BaseDefItem label="Fonction" :value="agent.fonction?.nom" />
-            </dl>
+            <div v-else-if="section === 'carriere'" class="space-y-6">
+              <dl class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+                <BaseDefItem label="Grade" :value="agent.grade?.nom" />
+                <BaseDefItem label="Catégorie" :value="agent.categorie?.nom" />
+                <BaseDefItem label="Échelon" :value="agent.echelon?.nom" />
+                <BaseDefItem label="Fonction" :value="agent.fonction?.nom" />
+              </dl>
+              <!-- Fonction hors grille (art. 55) : pas de ligne indiciaire. -->
+              <UAlert
+                v-if="agent.hors_grille"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-badge-dollar-sign"
+                title="Fonction hors grille (art. 55)"
+                description="Rémunération fonctionnelle : cet agent n'a pas de ligne indiciaire ni de bulletin indiciaire."
+              />
+              <div v-if="peutVoirReclassements" class="border-t border-default pt-6">
+                <ReclassementsAgentCard :agent-id="agent.id" />
+              </div>
+              <div v-if="peutVoirReclassements" class="border-t border-default pt-6">
+                <PositionsAgentCard :agent-id="agent.id" />
+              </div>
+              <div v-if="peutVoirReclassements" class="border-t border-default pt-6">
+                <PaieAgentCard :agent-id="agent.id" />
+              </div>
+            </div>
+
+            <!-- Dossier disciplinaire (RH) -->
+            <DisciplineAgentCard v-else-if="section === 'discipline'" :agent-id="agent.id" />
+
+            <!-- Dossier social (affiliations, ayants droit) -->
+            <SocialDossierCard v-else-if="section === 'social'" :agent-id="agent.id" />
 
             <!-- Situation administrative (synthèse carrière) -->
             <div v-else>
