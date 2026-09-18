@@ -30,12 +30,20 @@ Deux points relevés à l'intégration, sans gravité :
 
 Quatre demandes, par ordre d'utilité.
 
-### 1. Les séries mensuelles — le seul manque fonctionnel
+### 1. Les séries mensuelles
 
 Le plan du module a écarté l'historisation du périmètre V1 (§7 « Hors scope »).
-Conséquence : **aucune courbe n'est possible**, ni effectif, ni congés, ni masse
-salariale. C'est ce qui manque pour qu'un dirigeant voie une tendance et pas
-seulement une photo.
+
+**Ce que le front trace déjà sans vous**, en recomposant depuis des listes
+existantes — donc ne le refaites pas, sauf pour le sortir d'un seul appel :
+
+| Courbe | Source | Exactitude |
+|---|---|---|
+| Masse salariale mensuelle | `GET /paie/lots` (statut `valide`/`cloture`) | exacte — un lot porte son année, son mois, ses totaux |
+| Congés accordés / absences déclarées par mois de **début** | `GET /conges/demandes`, `GET /absences` | exacte — une période commence à une date et une seule |
+
+**Ce qui manque vraiment**, parce qu'aucune règle ne permet de le calculer côté
+front :
 
 ```json
 "series": {
@@ -49,6 +57,14 @@ seulement une photo.
 Un point par mois **même à zéro** : une série trouée fait une courbe trouée.
 Profondeur pilotée par une query `mois` (défaut 12, max 36).
 
+> ⚠️ **`jours_poses` par mois : à trancher côté métier.** Un congé du 28 février
+> au 9 mars, c'est 10 jours en février, ou 1 en février et 9 en mars, ou un
+> prorata de jours ouvrés ? Le front ne peut pas choisir à votre place — c'est
+> pour cette raison qu'il compte aujourd'hui des **événements** (combien de
+> congés démarrent chaque mois) et non des jours. Dès que la règle est fixée et
+> appliquée côté serveur, la courbe en jours s'ajoute ; elle ne remplace pas
+> celle des événements, qui ne mesure pas la même chose.
+
 > ⚠️ **Point de modèle, à trancher avant de coder.** La série d'effectif ne peut
 > pas être reconstruite depuis `agents.date_prise_service` et
 > `agents.archived_at` : le désarchivage remet `archived_at` à `null`, donc la
@@ -61,9 +77,7 @@ Profondeur pilotée par une query `mois` (défaut 12, max 36).
 >    `archive_le`, `desarchive_le`, `motif_code`) et reconstruire à partir de là.
 >
 > Sans l'une des deux, autant ne pas renvoyer la série d'effectif : le front
-> affichera les stocks sans la courbe plutôt qu'une courbe fausse. Les séries
-> congés et paie, elles, sont exactes dès aujourd'hui — les dates des demandes et
-> les lots mensuels existent déjà.
+> affichera les stocks sans la courbe plutôt qu'une courbe fausse.
 
 ### 2. Les blocs discipline et intégration
 

@@ -1,84 +1,86 @@
 <script setup lang="ts">
+import { Donut } from "@unovis/ts";
+import { VisDonut, VisSingleContainer, VisTooltip } from "@unovis/vue";
 import type { ItemRepartition } from "~/schemas/reporting";
-import { VIZ } from "~/constants/reporting";
 
 /**
- * Anneau de parts du tout. Réservé aux répartitions **courtes** — six parts au
- * plus, des valeurs franchement différentes : c'est une forme qui se lit d'un
- * coup d'œil, pas une forme qui sert à comparer des valeurs voisines. Au-delà,
- * des barres disent la même chose en mieux.
+ * Anneau de parts du tout — rendu par Unovis (`@unovis/vue`).
+ * Réservé aux répartitions **courtes** — six parts au plus, des valeurs
+ * franchement différentes : c'est une forme qui se lit d'un coup d'œil, pas une
+ * forme qui sert à comparer des valeurs voisines. Au-delà, des barres disent la
+ * même chose en mieux.
  *
- * Le centre porte le total : c'est le repère qui manque à un anneau nu.
+ * Le centre porte le total : c'est le repère qui manque à un anneau nu. La
+ * légende reste en HTML à côté de l'anneau : elle chiffre chaque part.
  */
 const props = withDefaults(
   defineProps<{ items: ItemRepartition[]; legendeTotal?: string; videLabel?: string }>(),
   { legendeTotal: "au total", videLabel: "Aucune donnée" },
 );
 
-const RAYON = 52;
+/** Diamètre de l'anneau (px) et épaisseur de l'arc. */
+const TAILLE = 144;
 const EPAISSEUR = 20;
-const CIRCONFERENCE = 2 * Math.PI * RAYON;
-/** Respiration entre deux parts : du vide, jamais un trait. */
-const ECART = 3;
+/** Respiration entre deux parts (radians) : du vide, jamais un trait. */
+const ECART = 0.04;
 
 const total = computed(() => props.items.reduce((somme, i) => somme + i.total, 0));
 
-const parts = computed(() => {
-  let depart = 0;
-
-  return props.items
+const parts = computed(() =>
+  props.items
     .filter((i) => i.total > 0)
-    .map((item, index) => {
-      const fraction = total.value ? item.total / total.value : 0;
-      const longueur = Math.max(0, fraction * CIRCONFERENCE - ECART);
-      const arc = {
-        ...item,
-        // Le gris est réservé à l'absence de donnée : « non renseigné » n'est
-        // pas une catégorie, il ne doit pas ressembler à une série.
-        couleur: /inconnu|non renseign/i.test(item.cle + item.libelle)
-          ? VIZ.neutre
-          : VIZ.categoriel[index % VIZ.categoriel.length],
-        pourcent: Math.round(fraction * 100),
-        longueur,
-        depart,
-      };
-      depart += fraction * CIRCONFERENCE;
-      return arc;
-    });
-});
+    .map((item, index) => ({
+      ...item,
+      couleur: couleurPart(item, index),
+      pourcent: total.value ? Math.round((item.total / total.value) * 100) : 0,
+    })),
+);
+
+type Part = (typeof parts.value)[number];
+
+const valeur = (p: Part) => p.total;
+const couleurDe = (p: Part) => p.couleur;
+
+/** Infobulle d'une part : gabarit HTML synchrone, texte échappé. */
+const declencheurs = {
+  [Donut.selectors.segment]: ({ data: p }: { data: Part }) =>
+    `<p class="flex items-center gap-2 text-xs">
+      <span class="size-2 shrink-0 rounded-[2px]" style="background:${p.couleur}"></span>
+      <span class="text-toned">${echapperHtml(p.libelle)}</span>
+      <span class="font-semibold tabular-nums text-highlighted">${p.total.toLocaleString("fr-FR")}</span>
+      <span class="text-muted">${p.pourcent} %</span>
+    </p>`,
+};
 </script>
 
 <template>
   <div v-if="!total" class="py-6 text-center text-sm text-muted">{{ videLabel }}</div>
 
   <div v-else class="flex flex-wrap items-center gap-x-8 gap-y-5">
-    <svg viewBox="0 0 140 140" class="size-36 shrink-0" role="img" :aria-label="`Répartition — ${total} au total`">
-      <!-- Piste : ce qui reste visible quand une part est minuscule. -->
-      <circle cx="70" cy="70" :r="RAYON" fill="none" :stroke="VIZ.piste" :stroke-width="EPAISSEUR" />
-      <circle
-        v-for="part in parts"
-        :key="part.cle"
-        cx="70"
-        cy="70"
-        :r="RAYON"
-        fill="none"
-        :stroke="part.couleur"
-        :stroke-width="EPAISSEUR"
-        :stroke-dasharray="`${part.longueur} ${CIRCONFERENCE - part.longueur}`"
-        :stroke-dashoffset="-part.depart"
-        transform="rotate(-90 70 70)"
-      >
-        <title>{{ part.libelle }} : {{ part.total }} ({{ part.pourcent }} %)</title>
-      </circle>
+    <div
+      class="relative shrink-0"
+      :style="{ width: `${TAILLE}px` }"
+      role="img"
+      :aria-label="`Répartition — ${total} ${legendeTotal}`"
+    >
+      <VisSingleContainer :data="parts" :height="TAILLE" :duration="300">
+        <VisDonut
+          :value="valeur"
+          :color="couleurDe"
+          :arc-width="EPAISSEUR"
+          :corner-radius="2"
+          :pad-angle="ECART"
+          :show-background="false"
+        />
+        <VisTooltip :triggers="declencheurs" />
+      </VisSingleContainer>
       <!-- Le texte prend la couleur d'encre du thème, jamais celle d'une part :
            une valeur ne porte pas l'identité d'une série. -->
-      <text x="70" y="66" text-anchor="middle" fill="currentColor" class="text-highlighted text-[22px] font-bold">
-        {{ total.toLocaleString("fr-FR") }}
-      </text>
-      <text x="70" y="84" text-anchor="middle" fill="currentColor" class="text-muted text-[11px]">
-        {{ legendeTotal }}
-      </text>
-    </svg>
+      <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center leading-none">
+        <span class="text-[22px] font-bold text-highlighted">{{ total.toLocaleString("fr-FR") }}</span>
+        <span class="mt-1 text-[11px] text-muted">{{ legendeTotal }}</span>
+      </div>
+    </div>
 
     <ul class="flex min-w-0 flex-1 flex-col gap-3">
       <li v-for="part in parts" :key="part.cle" class="flex items-baseline gap-2.5">

@@ -258,3 +258,39 @@ describe("peutAvancerEchelon", () => {
     expect(peutAvancerEchelon(fiche())).toBe(false);
   });
 });
+
+describe("peutReattribuerSuperieur", () => {
+  const rh = { peutCreer: true };
+  const chef = { peutCreer: false };
+  const ouverte = { statut: "ouverte" };
+
+  it("est ouvert à la RH sur une fiche vivante d'une session ouverte", () => {
+    const vivants = ["en_attente", "en_cours", "notee", "signee_evalue", "en_validation_rh"] as const;
+    for (const statut of vivants) {
+      expect(peutReattribuerSuperieur({ statut, session: ouverte }, rh)).toBe(true);
+    }
+  });
+
+  it("est refusé à un chef : on ne se retire pas soi-même d'une fiche", () => {
+    expect(peutReattribuerSuperieur({ statut: "en_cours", session: ouverte }, chef)).toBe(false);
+  });
+
+  it("est refusé sur une fiche terminée : cela réécrirait qui a signé", () => {
+    const termines = ["finalisee", "rejetee", "annulee"] as const;
+    for (const statut of termines) {
+      expect(peutReattribuerSuperieur({ statut, session: ouverte }, rh)).toBe(false);
+    }
+  });
+
+  it("est refusé si la session est clôturée ou annulée", () => {
+    expect(peutReattribuerSuperieur({ statut: "en_cours", session: { statut: "cloturee" } }, rh)).toBe(false);
+    expect(peutReattribuerSuperieur({ statut: "en_cours", session: { statut: "annulee" } }, rh)).toBe(false);
+  });
+
+  it("ne présume rien quand la session n'est pas dans le payload", () => {
+    // La liste ne charge pas la session : mieux vaut masquer le bouton que
+    // proposer une action qui finirait en 422.
+    expect(peutReattribuerSuperieur({ statut: "en_cours" }, rh)).toBe(false);
+    expect(peutReattribuerSuperieur({ statut: "en_cours", session: null }, rh)).toBe(false);
+  });
+});

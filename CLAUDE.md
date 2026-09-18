@@ -166,8 +166,11 @@ cd ../project-api-rh-artf && php artisan serve   # http://127.0.0.1:8000
 - `.env` → `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api`. Appel **direct**,
   sans proxy : le CORS de l'API est ouvert (`*`), préflight compris.
 - Base **SQLite** (`database/database.sqlite`). Première mise en route :
-  `php artisan migrate --seed`. Comptes livrés par `UserSeeder` :
-  `admin@arft.cg` / `Admin@2026` (admin) et `rh@arft.cg` / `Rh@2026` (rh).
+  `php artisan migrate --seed`. Comptes livrés par `UserSeeder` (domaine
+  **`artf.cg`** — corrigé côté API le 2026-09-17, l'ancien `arft.cg` était une
+  coquille) : `admin@artf.cg` / `Admin@2026`, `rh@artf.cg` / `Rh@2026`,
+  `dg@artf.cg` / `Dg@2026`, `agent@artf.cg` / `Agent@2026`, plus
+  `directeur@`, `chef-service@` et `chef-bureau@` sur le même modèle.
 - Une requête sans `Accept: application/json` sur une route protégée sort en
   `500` (« Route [login] not defined ») au lieu d'un `401` — c'est un artefact
   de curl, `useApiClient` envoie toujours l'en-tête.

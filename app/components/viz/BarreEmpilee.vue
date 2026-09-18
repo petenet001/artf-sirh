@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ItemRepartition } from "~/schemas/reporting";
-import { VIZ } from "~/constants/reporting";
+import type { Graduation } from "~/components/viz/Graduations.vue";
 
 /**
  * Une barre unique en parts du tout — la forme juste pour deux ou trois
@@ -9,8 +9,19 @@ import { VIZ } from "~/constants/reporting";
  * Deux teintes catégorielles validées pour la vision daltonienne, plus un gris
  * neutre pour l'absence de donnée : « non renseigné » n'est pas une catégorie,
  * c'est un trou, et il ne doit pas ressembler à une série.
+ *
+ * Graduation en quarts sous la barre : la moitié y est chiffrée, parce que c'est
+ * le repère qu'on cherche sur une part du tout (parité, poids des retenues).
  */
 const props = defineProps<{ items: ItemRepartition[]; videLabel?: string }>();
+
+const QUARTS: Graduation[] = [
+  { position: 0, libelle: "0 %" },
+  { position: 25, libelle: "" },
+  { position: 50, libelle: "50 %" },
+  { position: 75, libelle: "" },
+  { position: 100, libelle: "100 %" },
+];
 
 const total = computed(() => props.items.reduce((somme, i) => somme + i.total, 0));
 
@@ -19,11 +30,7 @@ const segments = computed(() =>
     .filter((i) => i.total > 0)
     .map((item, index) => ({
       ...item,
-      // Le gris est réservé aux valeurs non renseignées ; les autres prennent
-      // les teintes catégorielles dans l'ordre fixe.
-      couleur: /inconnu|non renseign/i.test(item.cle + item.libelle)
-        ? VIZ.neutre
-        : VIZ.categoriel[index % VIZ.categoriel.length],
+      couleur: couleurPart(item, index),
       part: total.value ? (item.total / total.value) * 100 : 0,
     })),
 );
@@ -45,6 +52,7 @@ const segments = computed(() =>
         :title="`${segment.libelle} : ${segment.total} (${Math.round(segment.part)} %)`"
       />
     </div>
+    <VizGraduations class="-mt-2.5" :graduations="QUARTS" />
 
     <ul class="flex flex-wrap gap-x-6 gap-y-2">
       <li v-for="segment in segments" :key="segment.cle" class="flex items-center gap-2">

@@ -1,9 +1,26 @@
+import { reactionSession } from "~/utils/httpErreur";
+
 /**
  * Client HTTP unique de l'application.
  *
  * C'est le SEUL point qui connaît la baseURL, injecte le token et gère les
  * erreurs d'authentification. Aucune page ni aucun store ne doit appeler
  * `$fetch` directement : tout passe par la couche `api/`, qui s'appuie ici.
+ *
+ * ## 401 et 403 ne sont pas la même chose
+ *
+ * - **401** — le token est invalide ou expiré. Il n'y a plus de session : on la
+ *   nettoie et on renvoie au login. La redirection porte un motif, pour que
+ *   l'écran de connexion explique ce qui vient de se passer plutôt que de
+ *   laisser croire à un bug.
+ * - **403** (`{"message":"Accès refusé."}`) — la session est **parfaitement
+ *   valide**, il manque seulement une permission. Déconnecter serait à la fois
+ *   faux et brutal : l'utilisateur perd sa place pour avoir cliqué au mauvais
+ *   endroit. L'erreur remonte donc normalement à l'appelant, qui la présente
+ *   via `useApiError`.
+ *
+ * Les deux étaient traités pareil : c'est ce qui provoquait les déconnexions
+ * inexpliquées sur une page interdite.
  */
 export function useApiClient() {
   const { apiBase } = useRuntimeConfig().public;
@@ -18,9 +35,11 @@ export function useApiClient() {
       options.headers = headers;
     },
     onResponseError({ response }) {
-      if (response.status === 401 || response.status === 403) {
-        useAuthStore().clearSession();
-        if (import.meta.client) navigateTo("/login", { replace: true });
+      if (reactionSession(response.status, response.url) !== "deconnecter") return;
+
+      useAuthStore().clearSession();
+      if (import.meta.client) {
+        navigateTo({ path: "/login", query: { raison: "session" } }, { replace: true });
       }
     },
   });

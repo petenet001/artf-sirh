@@ -17,6 +17,11 @@ import { getPaginationRowModel, type SortingState, type Row, type Column } from 
  * - `bordered`   : encadré (par défaut) ; `false` dans une carte.
  * - slot `#filters` : filtres additionnels, à gauche à côté de la recherche.
  * - slot `#actions` : boutons de la barre d'outils, à droite.
+ * - slot `#empty`   : message quand la liste est vide. Un défaut français est
+ *   fourni, et c'est **ici** que l'état vide d'une liste se rend — surtout pas
+ *   en masquant la table : la barre d'outils, donc le bouton « Nouveau », doit
+ *   rester visible. Une liste vide est précisément le moment où l'on a besoin
+ *   de créer le premier élément (cf. `emptyLabel`).
  * - tous les slots de colonnes (`#<col>-cell`, `#<col>-header`, `#empty`…)
  *   sont transmis à `UTable`.
  */
@@ -30,10 +35,18 @@ const props = withDefaults(
     searchable?: boolean;
     searchPlaceholder?: string;
     pageSize?: number;
+    /** Message affiché quand la liste est vide (le slot `#empty` l'emporte). */
+    emptyLabel?: string;
     /** Rend chaque ligne cliquable : navigue vers l'URL calculée depuis la ligne. */
     rowTo?: (row: T) => string;
   }>(),
-  { bordered: true, searchPlaceholder: "Rechercher…", pageSize: undefined, rowTo: undefined },
+  {
+    bordered: true,
+    searchPlaceholder: "Rechercher…",
+    pageSize: undefined,
+    rowTo: undefined,
+    emptyLabel: "Aucun élément à afficher",
+  },
 );
 
 // Clic de ligne -> navigation (quand `rowTo` est fourni).
@@ -122,6 +135,15 @@ ref="table" v-model:sorting="sorting" v-model:global-filter="globalFilter" v-mod
         :columns="columns" :loading="loading" :sticky="sticky" :on-select="selectHandler" :ui="tableUi">
         <template v-for="(_, name) in $slots" #[name]="slotData">
           <slot v-if="name !== 'filters' && name !== 'actions'" :name="name" v-bind="slotData" />
+        </template>
+
+        <!-- État vide par défaut, en français, si la page n'en fournit pas :
+             `UTable` afficherait sinon son libellé anglais. -->
+        <template v-if="!$slots.empty" #empty>
+          <div class="flex flex-col items-center justify-center gap-2 py-10">
+            <UIcon name="i-lucide-inbox" class="size-6 text-dimmed" />
+            <p class="text-sm text-muted">{{ emptyLabel }}</p>
+          </div>
         </template>
       </UTable>
     </div>

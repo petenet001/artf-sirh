@@ -436,3 +436,91 @@ export const ZONES_INDEMNITE_FORMATION = ["afrique", "autre"] as const;
 
 /** Cause prolongeant un intérim au-delà de 6 mois. */
 export const CAUSES_PROLONGATION_INTERIM = ["maladie", "accident_travail"] as const;
+
+// ── Prestations sociales (D.3.4) et Santé (D.3.5) ────────────────────────────
+
+/**
+ * App\Enums\StatutPrestation **et** App\Enums\StatutDossierSante — deux énums
+ * backend distincts, aux valeurs strictement identiques. Le front n'en garde
+ * qu'une : les trois dossiers (prestation, prise en charge, arrêt) suivent le
+ * même circuit et se pilotent avec le même code.
+ */
+export const STATUTS_DOSSIER_SOCIAL = [
+  "brouillon",
+  "soumise",
+  "instruite",
+  "accordee",
+  "refusee",
+  "classee",
+] as const;
+
+/**
+ * Étape suivante d'un dossier social (champ serveur `prochaine_etape`).
+ * `null` = circuit terminé. **Source de vérité runtime** du bouton à afficher.
+ */
+export const ETAPES_DOSSIER_SOCIAL = ["soumettre", "instruire", "accorder"] as const;
+
+/** App\Enums\TypePrestation — prestations CCN ponctuelles (art. 119–121). */
+export const TYPES_PRESTATION = [
+  "capital_deces",
+  "prime_enfants_deces",
+  "frais_funeraires",
+  "allocation_deces_retraite",
+  "indemnite_retraite",
+] as const;
+
+/** App\Enums\TypePiecePrestation — pièces justificatives d'une prestation. */
+export const TYPES_PIECE_PRESTATION = [
+  "acte_deces",
+  "facture",
+  "certificat",
+  "decision_retraite",
+  "autre",
+] as const;
+
+/** App\Enums\NatureArretSante — origine de l'arrêt (art. 132–135). */
+export const NATURES_ARRET_SANTE = [
+  "maladie",
+  "accident_travail",
+  "maladie_professionnelle",
+  "accident_non_professionnel",
+] as const;
+
+/** App\Enums\TypePriseEnCharge — frais médicaux pris en charge (art. 122–127). */
+export const TYPES_PRISE_EN_CHARGE = [
+  "honoraires_soins",
+  "pharmaceutique",
+  "verres_correcteurs",
+  "hospitalisation",
+  "evacuation_sanitaire",
+] as const;
+
+/** App\Enums\TypePieceSante — pièces d'un dossier santé. */
+export const TYPES_PIECE_SANTE = [
+  "facture",
+  "ordonnance",
+  "certificat",
+  "rapport_medical",
+  "autre",
+] as const;
+
+/** App\Enums\TypeVisiteMedicale — motif de la visite. */
+export const TYPES_VISITE_MEDICALE = ["embauche", "annuelle", "consultation"] as const;
+
+/** App\Enums\TypeStructureSanitaire — nature du prestataire agréé. */
+export const TYPES_STRUCTURE_SANITAIRE = [
+  "medecin",
+  "formation_sanitaire",
+  "opticien",
+  "pharmacie",
+] as const;
+
+/**
+ * `User::vuePersonnel()` — périmètre effectif d'un compte sur le personnel.
+ *
+ * `globale` couvre deux cas que rien ne distingue à l'écran : le compte sans
+ * bureau de rattachement, et celui qui en a un mais porte
+ * `consulter-agents-global` (tout le métier RH). Dans les deux cas il voit
+ * l'effectif entier — c'est ce qui compte pour l'utilisateur.
+ */
+export const VUES_PERSONNEL = ["globale", "direction", "service", "bureau"] as const;

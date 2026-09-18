@@ -43,12 +43,13 @@ const columns: TableColumn<Nomination>[] = [
 
 <template>
   <BasePanel title="Nominations" subtitle="Nominations des agents aux postes de responsabilité">
-    <BaseDataState
-      :pending="pending"
-      :error="error"
-      :empty="!nominations.length"
-      empty-label="Aucune nomination"
-    >
+    <!--
+      Pas de `:empty` ici : masquer la table masquerait sa barre d'outils, donc
+      le bouton « Nouvelle nomination » — or c'est précisément quand la liste
+      est vide qu'il faut pouvoir en créer une. L'état vide se rend dans la
+      table (`empty-label`), la barre d'outils reste en place.
+    -->
+    <BaseDataState :pending="pending" :error="error">
       <BaseTable
         :data="rows"
         :columns="columns"
@@ -56,6 +57,7 @@ const columns: TableColumn<Nomination>[] = [
         search-placeholder="Rechercher un agent, un poste, une structure…"
         :page-size="10"
         :row-to="(n) => `/carriere/nominations/${n.id}`"
+        empty-label="Aucune nomination enregistrée pour l'instant."
       >
         <template #filters>
           <USelect v-model="statut" :items="statutItems" class="w-48" />

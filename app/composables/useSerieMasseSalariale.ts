@@ -1,14 +1,14 @@
 import type { PointSerie } from "~/components/viz/Courbe.vue";
+import { libelleMois } from "~/utils/series";
 
 /**
  * Évolution mensuelle de la masse salariale, reconstruite depuis les lots de
  * paie (`GET /paie/lots`).
  *
- * C'est la **seule série temporelle exacte** que le front peut composer
- * aujourd'hui : un lot porte son année, son mois et ses totaux, sans ambiguïté
- * d'affectation. Les autres séries attendent le backend — la courbe des jours de
- * congé, par exemple, supposerait de trancher comment répartir un congé à cheval
- * sur deux mois, ce qui est une décision métier, pas un calcul.
+ * Série temporelle **exacte** : un lot porte son année, son mois et ses totaux,
+ * sans ambiguïté d'affectation. Pour les congés et absences, c'est le même
+ * principe mais en comptant des événements — cf. `useSerieIndisponibilites`,
+ * qui explique pourquoi une courbe en *jours* attend encore le backend.
  *
  * Seuls les lots **validés ou clôturés** comptent : un lot en brouillon ou en
  * cours de contrôle donnerait un montant qui bougera encore.
@@ -21,11 +21,6 @@ export function useSerieMasseSalariale(mois = 12) {
     auth.can("consulter-salaires") ? api.lots() : Promise.resolve(null),
   );
 
-  const MOIS_COURTS = [
-    "janv.", "févr.", "mars", "avr.", "mai", "juin",
-    "juil.", "août", "sept.", "oct.", "nov.", "déc.",
-  ];
-
   const points = computed<PointSerie[]>(() => {
     const lots = (data.value?.data ?? [])
       .filter((lot) => lot.statut === "valide" || lot.statut === "cloture")
@@ -37,7 +32,7 @@ export function useSerieMasseSalariale(mois = 12) {
       .slice(-mois)
       .map((lot) => ({
         cle: `${lot.annee}-${String(lot.mois).padStart(2, "0")}`,
-        libelle: MOIS_COURTS[lot.mois - 1] ?? String(lot.mois),
+        libelle: libelleMois(lot.mois),
         valeur: lot.total_net ?? 0,
       }));
   });

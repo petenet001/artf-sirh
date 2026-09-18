@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { CurveType } from "@unovis/ts";
+import { VisAxis, VisArea, VisCrosshair, VisLine, VisTooltip, VisXYContainer } from "@unovis/vue";
 import { VIZ } from "~/constants/reporting";
 
 export interface PointSerie {
@@ -9,136 +11,206 @@ export interface PointSerie {
   valeur: number;
 }
 
+export interface SerieCourbe {
+  cle: string;
+  /** Nom de la série, porté par la légende. */
+  libelle: string;
+  points: PointSerie[];
+}
+
+/** Une ligne de données du graphique : une période, une colonne par série. */
+type LignePeriode = { _cle: string; _libelle: string } & Record<string, number | string>;
+
 /**
- * Évolution d'une mesure dans le temps : une aire claire sous une ligne fine,
- * le dernier point marqué et chiffré.
+ * Évolution d'une ou deux mesures dans le temps — rendu par Unovis
+ * (`@unovis/vue`), habillé aux couleurs ARTF (`main.css`, variables `--vis-*`).
  *
- * Deux partis pris de lecture :
- * - **l'échelle part de zéro.** Sur un montant, tronquer la base exagère
- *   visuellement les variations — une hausse de 2 % ressemblerait à un doublement ;
- * - **on ne chiffre pas tous les points.** Seuls le dernier et le maximum sont
- *   étiquetés ; les autres se lisent au survol. Un nombre sur chaque point ne se
- *   lit plus.
+ * Partis pris de lecture :
+ * - **l'échelle part de zéro** et s'arrête sur une valeur ronde (`echelleRonde`) :
+ *   sur un montant, tronquer la base exagère visuellement les variations — une
+ *   hausse de 2 % ressemblerait à un doublement ;
+ * - **on ne chiffre pas tous les points.** Le quadrillage gradué donne l'ordre de
+ *   grandeur, la dernière valeur est écrite au-dessus du graphique, le reste se
+ *   lit au survol (réticule + infobulle, au doigt comme à la souris) ;
+ * - **une seule échelle, même à deux séries.** Superposer deux mesures n'est
+ *   légitime que si elles partagent leur unité (ici : des demandes). Deux axes Y
+ *   permettraient de faire dire n'importe quoi à la comparaison — on ne le fait
+ *   jamais. À deux séries, l'aire disparaît (deux aires superposées se
+ *   brouillent) et la légende porte la dernière valeur de chacune.
  */
 const props = withDefaults(
   defineProps<{
-    points: PointSerie[];
+    /** Série unique. Ignoré si `series` est fourni. */
+    points?: PointSerie[];
+    /** Deux séries comparables, de même unité. */
+    series?: SerieCourbe[];
     /** Mise en forme des valeurs (montants, jours…). */
     format?: (valeur: number) => string;
     videLabel?: string;
   }>(),
-  { format: (v: number) => v.toLocaleString("fr-FR"), videLabel: "Pas encore assez d'historique" },
+  {
+    points: () => [],
+    series: () => [],
+    format: (v: number) => v.toLocaleString("fr-FR"),
+    videLabel: "Pas encore assez d'historique",
+  },
 );
 
-// Repère fixe : le SVG se met à l'échelle sans déformer les traits.
-// Les marges ne sont pas décoratives : à gauche, la première étiquette d'axe est
-// centrée sous son point et déborderait ; à droite, la valeur du dernier point
-// s'écrit en toutes lettres (« 84 500 000 F ») et doit tenir sans être rognée.
-const L = 24;
-const R = 104;
-const T = 26;
-const B = 30;
-const W = 640;
-const H = 220;
+const HAUTEUR = 220;
 
-const suffisant = computed(() => props.points.length >= 2);
-const max = computed(() => Math.max(1, ...props.points.map((p) => p.valeur)));
-
-const coords = computed(() =>
-  props.points.map((point, index) => {
-    const pas = props.points.length > 1 ? (W - L - R) / (props.points.length - 1) : 0;
-    return {
-      ...point,
-      x: L + index * pas,
-      // L'échelle part de zéro : la base du graphique est le zéro réel.
-      y: T + (1 - point.valeur / max.value) * (H - T - B),
-    };
-  }),
+const series = computed<SerieCourbe[]>(() =>
+  props.series.length ? props.series : [{ cle: "valeur", libelle: "", points: props.points }],
 );
+const multi = computed(() => series.value.length > 1);
 
-const ligne = computed(() => coords.value.map((p, i) => `${i ? "L" : "M"}${p.x} ${p.y}`).join(" "));
-const aire = computed(() => {
-  const premier = coords.value[0];
-  const dernier = coords.value[coords.value.length - 1];
-  if (!premier || !dernier) return "";
-  return `${ligne.value} L${dernier.x} ${H - B} L${premier.x} ${H - B} Z`;
+/** Couleur : une mesure unique prend le bleu de marque, deux prennent la paire catégorielle. */
+function couleur(index: number) {
+  return multi.value ? (VIZ.categoriel[index] ?? VIZ.neutre) : VIZ.serie;
+}
+
+/** Axe des X = union des périodes rencontrées. Les clés `YYYY-MM` se trient à plat. */
+const periodes = computed(() => {
+  const vues = new Map<string, string>();
+  for (const serie of series.value) {
+    for (const point of serie.points) if (!vues.has(point.cle)) vues.set(point.cle, point.libelle);
+  }
+  return [...vues.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([cle, libelle]) => ({ cle, libelle }));
 });
 
-const dernier = computed(() => coords.value[coords.value.length - 1] ?? null);
-const sommet = computed(() => {
-  const point = coords.value.reduce((haut, p) => (p.valeur > haut.valeur ? p : haut), coords.value[0]!);
-  // Inutile de doubler l'étiquette si le maximum est déjà le dernier point.
-  return point && dernier.value && point.cle !== dernier.value.cle ? point : null;
+const suffisant = computed(() => periodes.value.length >= 2);
+
+/** Une période absente d'une série vaut zéro : la grille de mois fait foi. */
+const lignes = computed<LignePeriode[]>(() => {
+  const index = series.value.map((s) => new Map(s.points.map((p) => [p.cle, p.valeur])));
+  return periodes.value.map((periode) => {
+    const ligne: LignePeriode = { _cle: periode.cle, _libelle: periode.libelle };
+    series.value.forEach((serie, i) => {
+      ligne[serie.cle] = index[i]!.get(periode.cle) ?? 0;
+    });
+    return ligne;
+  });
 });
+
+const echelle = computed(() =>
+  echelleRonde(Math.max(0, ...series.value.flatMap((s) => s.points.map((p) => p.valeur)))),
+);
 
 /** Étiquettes d'axe : les extrémités toujours, le reste si la place existe. */
-const etiquettes = computed(() => {
-  const total = coords.value.length;
+const ticksX = computed(() => {
+  const total = periodes.value.length;
   const pas = total > 8 ? Math.ceil(total / 6) : 1;
-  return coords.value.filter((_, i) => i === 0 || i === total - 1 || i % pas === 0);
+  return periodes.value.map((_, i) => i).filter((i) => i === 0 || i === total - 1 || i % pas === 0);
 });
+
+function libelleX(tick: number): string {
+  return periodes.value[tick]?.libelle ?? "";
+}
+
+/** Mois en toutes lettres pour l'infobulle : « août 2026 ». */
+function libellePeriode(ligne: LignePeriode | undefined): string {
+  if (!ligne) return "";
+  return `${ligne._libelle} ${ligne._cle.slice(0, 4)}`;
+}
+
+function valeurDe(ligne: LignePeriode | undefined, cle: string): number {
+  return Number(ligne?.[cle] ?? 0);
+}
+
+const derniere = computed(() => lignes.value[lignes.value.length - 1]);
+
+const abscisse = (_: LignePeriode, i: number) => i;
+const ordonnees = computed(() => series.value.map((serie) => (ligne: LignePeriode) => valeurDe(ligne, serie.cle)));
+const couleurSerie = (_: unknown, i: number) => couleur(i);
+
+/**
+ * Infobulle du réticule. Unovis appelle ce gabarit de façon synchrone avec la
+ * période survolée et attend du HTML : le contenu est donc toujours celui du
+ * point sous le curseur — un rendu Vue différé, lui, aurait un survol de
+ * retard. Tout texte est échappé.
+ */
+function infobulle(ligne: LignePeriode): string {
+  const lignes = series.value
+    .map((serie, i) => {
+      const nom = multi.value ? `<span class="flex-1 text-muted">${echapperHtml(serie.libelle)}</span>` : "";
+      return `<p class="flex items-center gap-2">
+        <span class="size-2 shrink-0 rounded-full" style="background:${couleur(i)}"></span>${nom}
+        <span class="ml-auto font-semibold tabular-nums text-highlighted">${echapperHtml(props.format(valeurDe(ligne, serie.cle)))}</span>
+      </p>`;
+    })
+    .join("");
+  return `<div class="flex min-w-40 flex-col gap-1.5 text-xs">
+    <p class="font-semibold text-highlighted">${echapperHtml(libellePeriode(ligne))}</p>${lignes}
+  </div>`;
+}
 </script>
 
 <template>
-  <p v-if="!suffisant" class="py-8 text-center text-sm text-muted">{{ videLabel }}</p>
+  <div>
+    <p v-if="!suffisant" class="py-8 text-center text-sm text-muted">{{ videLabel }}</p>
 
-  <svg
-    v-else
-    :viewBox="`0 0 ${W} ${H}`"
-    class="h-auto w-full"
-    role="img"
-    :aria-label="`Évolution sur ${points.length} mois`"
-  >
-    <!-- Ligne de base : une hairline, jamais un trait pointillé. -->
-    <line :x1="L" :y1="H - B" :x2="W - R" :y2="H - B" :stroke="VIZ.piste" stroke-width="1" />
+    <template v-else>
+      <!-- Légende obligatoire dès deux séries : la couleur seule ne doit jamais
+           porter l'identité. Elle affiche aussi la dernière valeur, que le
+           graphique ne peut pas étiqueter sans collision. En série unique, la
+           dernière valeur seule, sans pastille : le titre de la carte nomme la mesure. -->
+      <ul class="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1" :class="{ 'justify-end': !multi }">
+        <li v-for="(serie, i) in series" :key="serie.cle" class="flex items-center gap-2 text-xs">
+          <span v-if="multi" class="size-2.5 shrink-0 rounded-full" :style="{ backgroundColor: couleur(i) }" />
+          <span class="text-muted">{{ multi ? serie.libelle : libellePeriode(derniere) }}</span>
+          <span class="font-semibold tabular-nums text-highlighted">
+            {{ format(valeurDe(derniere, serie.cle)) }}
+          </span>
+        </li>
+      </ul>
 
-    <path :d="aire" :fill="VIZ.serie" fill-opacity="0.1" />
-    <path :d="ligne" fill="none" :stroke="VIZ.serie" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-
-    <!-- Cible de survol généreuse : le point seul serait trop petit à viser. -->
-    <g v-for="point in coords" :key="point.cle">
-      <circle :cx="point.x" :cy="point.y" r="12" fill="transparent">
-        <title>{{ point.libelle }} : {{ format(point.valeur) }}</title>
-      </circle>
-    </g>
-
-    <!-- Le dernier point porte un anneau de fond pour rester lisible sur l'aire. -->
-    <circle v-if="dernier" :cx="dernier.x" :cy="dernier.y" r="6" fill="#ffffff" />
-    <circle v-if="dernier" :cx="dernier.x" :cy="dernier.y" r="4" :fill="VIZ.serie" />
-    <text
-      v-if="dernier"
-      :x="dernier.x + 12"
-      :y="dernier.y + 4"
-      fill="currentColor"
-      class="text-highlighted text-[13px] font-bold"
-    >
-      {{ format(dernier.valeur) }}
-    </text>
-
-    <template v-if="sommet">
-      <circle :cx="sommet.x" :cy="sommet.y" r="5" fill="#ffffff" />
-      <circle :cx="sommet.x" :cy="sommet.y" r="3" :fill="VIZ.serie" />
-      <text
-        :x="sommet.x"
-        :y="sommet.y - 12"
-        text-anchor="middle"
-        fill="currentColor"
-        class="text-muted text-[11px]"
-      >
-        {{ format(sommet.valeur) }}
-      </text>
+      <div role="img" :aria-label="`Évolution sur ${periodes.length} mois`">
+        <VisXYContainer
+          :data="lignes"
+          :height="HAUTEUR"
+          :y-domain="[0, echelle.borne]"
+          :padding="{ top: 8, right: 16 }"
+          :duration="300"
+        >
+          <!-- Aire en aplat à 10 % sous une série unique ; à deux séries, les
+               aires superposées se brouilleraient. -->
+          <VisArea
+            v-if="!multi"
+            :x="abscisse"
+            :y="ordonnees[0]"
+            :color="couleur(0)"
+            :opacity="0.1"
+            :curve-type="CurveType.Linear"
+          />
+          <VisLine
+            :x="abscisse"
+            :y="ordonnees"
+            :color="couleurSerie"
+            :line-width="2"
+            :curve-type="CurveType.Linear"
+          />
+          <VisAxis
+            type="x"
+            :tick-values="ticksX"
+            :tick-format="libelleX"
+            :grid-line="false"
+            :domain-line="false"
+            :tick-line="false"
+          />
+          <!-- La graduation : quadrillage aux valeurs rondes de `echelleRonde`. -->
+          <VisAxis
+            type="y"
+            :tick-values="echelle.graduations"
+            :tick-format="formatGraduation"
+            :grid-line="true"
+            :domain-line="false"
+            :tick-line="false"
+          />
+          <VisCrosshair :template="infobulle" :color="couleurSerie" />
+          <VisTooltip />
+        </VisXYContainer>
+      </div>
     </template>
-
-    <text
-      v-for="point in etiquettes"
-      :key="`x-${point.cle}`"
-      :x="point.x"
-      :y="H - 10"
-      text-anchor="middle"
-      fill="currentColor"
-      class="text-muted text-[11px]"
-    >
-      {{ point.libelle }}
-    </text>
-  </svg>
+  </div>
 </template>

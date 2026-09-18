@@ -25,5 +25,23 @@ export function useUsersApi() {
 
     remove: (id: number) =>
       api<{ message: string }>(`/users/${id}`, { method: "DELETE" }),
+
+    /**
+     * Vague F — rattache l'utilisateur à un bureau DRHL, ou change son bureau.
+     *
+     * Le rattachement ne donne **aucun droit** : il en retire. Les listes
+     * renvoyées par l'API (agents, congés, absences, sanctions) sont alors
+     * réduites au périmètre de la structure du bureau. Réservé à
+     * `modifier-utilisateurs`.
+     */
+    rattacherBureau: (id: number, bureauId: number) =>
+      api<ApiResponse<User>>(`/users/${id}/bureau`, {
+        method: "POST",
+        body: { bureau_id: bureauId },
+      }),
+
+    /** Retire le cloisonnement : l'utilisateur retrouve un périmètre global. */
+    retirerBureau: (id: number) =>
+      api<ApiResponse<User>>(`/users/${id}/bureau`, { method: "DELETE" }),
   };
 }

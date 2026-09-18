@@ -67,6 +67,30 @@ function rompre() {
   );
 }
 
+/**
+ * Résiliation d'un contrat **hors période d'essai**.
+ *
+ * À ne pas confondre avec la rupture d'essai (art. 49), qui est un autre acte,
+ * réversible en droit et limité à la période probatoire. La résiliation met fin
+ * à un contrat en cours : l'écran n'en offrait aucun moyen, les actions étant
+ * toutes conditionnées à un essai ouvert.
+ */
+function estResiliable(contrat: Contrat): boolean {
+  return contrat.statut === "actif" && !essaiOuvert(contrat.essai);
+}
+
+function resilier(contrat: Contrat) {
+  if (
+    !confirm(
+      `Résilier le contrat de ${agentNom(contrat.agent)} ? `
+      + "Le contrat passera en « résilié ». Cette action ne se défait pas depuis l'application.",
+    )
+  ) {
+    return;
+  }
+  executer(() => api.resilier(contrat.id), "Contrat résilié");
+}
+
 const columns: TableColumn<Contrat>[] = [
   {
     id: "agent",
@@ -132,7 +156,21 @@ const columns: TableColumn<Contrat>[] = [
             <PositionsEssaiBadge :essai="row!.original.essai" />
           </template>
           <template #actions-cell="{ row }">
-            <div v-if="peutModifier && essaiOuvert(row!.original.essai)" class="flex justify-end gap-2">
+            <div v-if="peutModifier" class="flex justify-end gap-2">
+              <!-- Hors essai, la seule action possible est la résiliation. -->
+              <UButton
+                v-if="estResiliable(row!.original)"
+                size="xs"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-file-x"
+                :loading="busy"
+                title="Mettre fin au contrat (hors période d'essai)"
+                @click="resilier(row!.original)"
+              >
+                Résilier
+              </UButton>
+              <template v-if="essaiOuvert(row!.original.essai)">
               <UButton
                 size="xs"
                 color="success"
@@ -164,6 +202,7 @@ const columns: TableColumn<Contrat>[] = [
               >
                 Rompre
               </UButton>
+              </template>
             </div>
           </template>
         </BaseTable>

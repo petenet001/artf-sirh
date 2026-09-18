@@ -12,6 +12,14 @@ const handleError = useApiError();
 const state = reactive<Partial<LoginInput>>({ email: "", password: "" });
 const loading = ref(false);
 
+/**
+ * Pourquoi l'utilisateur se retrouve ici. Le client HTTP pose `?raison=session`
+ * quand l'API a répondu 401 : sans ce mot, on est simplement éjecté sur le
+ * login sans savoir si c'est un bug, une panne, ou soi-même. Un 403 (droits
+ * manquants) n'amène **jamais** ici — il ne déconnecte pas.
+ */
+const sessionExpiree = computed(() => useRoute().query.raison === "session");
+
 async function onSubmit(event: FormSubmitEvent<LoginInput>) {
   loading.value = true;
   try {
@@ -42,6 +50,15 @@ async function onSubmit(event: FormSubmitEvent<LoginInput>) {
       <h1 class="text-2xl font-bold text-highlighted">Connexion</h1>
       <p class="mt-1 text-sm text-muted">Accédez à votre espace {{ branding.shortName }}</p>
     </div>
+
+    <UAlert
+      v-if="sessionExpiree"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-clock-alert"
+      title="Votre session a expiré"
+      description="Par sécurité, la connexion est coupée après un temps d'inactivité. Reconnectez-vous pour reprendre où vous en étiez."
+    />
 
     <UForm :schema="loginSchema" :state="state" class="space-y-4" @submit="onSubmit">
       <UFormField label="Email" name="email">

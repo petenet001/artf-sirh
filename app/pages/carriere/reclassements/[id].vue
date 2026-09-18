@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { estRh } from "~/constants/roles";
 import {
   agentNom,
   ETAPE_RECLASSEMENT_LABEL,
@@ -35,7 +36,7 @@ const { data, pending, error, refresh } = useAsyncData(
 const dossier = computed(() => data.value?.data ?? null);
 
 const acteur = computed(() => ({
-  estRh: auth.hasRole("rh"),
+  estRh: estRh(auth.hasRole),
   estDg: auth.hasRole("directeur-general"),
   estAdmin: auth.hasRole("admin"),
 }));

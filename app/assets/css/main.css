@@ -63,3 +63,34 @@ html,
 body {
   background-color: color-mix(in oklab, var(--color-artf-500) 3%, white);
 }
+
+/* ---------------------------------------------------------------------------
+ * Graphiques (Unovis, `@unovis/vue`)
+ * Habillage des composants `components/viz/` rendus par la librairie : police,
+ * encre et quadrillage alignés sur les jetons Nuxt UI, pour que la courbe et
+ * l'anneau ne se distinguent pas des barres faites en HTML.
+ * Posé sur `body` et non `:root` : Unovis injecte ses propres valeurs sur
+ * `:root` à l'exécution, la variable la plus proche de l'élément l'emporte.
+ * Les teintes de données restent dans `constants/reporting.ts` (VIZ).
+ * ------------------------------------------------------------------------- */
+body {
+  --vis-font-family: var(--font-sans);
+  --vis-axis-font-family: var(--font-sans);
+  --vis-axis-tick-label-font-size: 11px;
+  --vis-axis-tick-label-color: var(--ui-text-muted);
+  --vis-axis-grid-color: #e2e8f0; /* = VIZ.grille */
+  --vis-axis-grid-line-width: 1px;
+  --vis-axis-domain-color: #e2e8f0;
+  --vis-crosshair-line-stroke-color: var(--ui-border-accented);
+  --vis-crosshair-line-stroke-width: 1px;
+  --vis-crosshair-circle-stroke-color: #ffffff;
+  --vis-crosshair-circle-stroke-width: 2px;
+  --vis-crosshair-circle-stroke-opacity: 1;
+  --vis-tooltip-background-color: var(--ui-bg);
+  --vis-tooltip-border-color: var(--ui-border);
+  --vis-tooltip-border-radius: 8px;
+  --vis-tooltip-padding: 8px 12px;
+  --vis-tooltip-text-color: var(--ui-text);
+  --vis-tooltip-shadow-color: rgb(15 23 42 / 0.08);
+  --vis-legend-spacing: 12px;
+}

@@ -2,6 +2,7 @@
 import type { TableColumn } from "@nuxt/ui";
 import type { CongeSolde } from "~/schemas/conge-solde";
 import { agentNom } from "~/constants/conges";
+import { estRh } from "~/constants/roles";
 
 /**
  * Soldes de congé. Lecture seule : un solde est créé à la première lecture de
@@ -21,7 +22,7 @@ const agentsApi = useAgentsApi();
 
 const agentId = computed(() => auth.user?.agent_id ?? 0);
 const peutVoirTous = computed(
-  () => auth.can("valider-conges") || auth.hasRole("rh") || auth.hasRole("admin"),
+  () => auth.can("valider-conges") || estRh(auth.hasRole),
 );
 
 type PorteeSoldes = "mine" | "all";

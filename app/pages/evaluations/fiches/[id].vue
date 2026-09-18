@@ -34,6 +34,12 @@ const grilleEditable = computed(
 );
 const pdfDispo = computed(() => !!evaluation.value && peutTelechargerFiche(evaluation.value, acteur.value));
 
+// Réattribution du notateur (note FE §7b) : RH, session ouverte, fiche vivante.
+const reattributionOpen = ref(false);
+const peutReattribuer = computed(
+  () => !!evaluation.value && peutReattribuerSuperieur(evaluation.value, acteur.value),
+);
+
 // Inscription au tableau d'avancement (D5) : RH, sur une fiche finalisée.
 const actionsTab = computed(() =>
   evaluation.value ? actionsTableau(evaluation.value, acteur.value) : [],
@@ -112,8 +118,27 @@ async function enregistrerContexte() {
         <div class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-default bg-default p-5">
           <div class="min-w-0">
             <p class="text-lg font-semibold text-highlighted">{{ agentNom(evaluation.agent) }}</p>
-            <p class="text-sm text-muted">
-              Notateur : {{ agentNom(evaluation.superieur) }}
+            <p class="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+              <span v-if="evaluation.superieur">Notateur : {{ agentNom(evaluation.superieur) }}</span>
+              <!--
+                Un agent sans notateur ne peut être ni noté ni validé : on le
+                signale au lieu d'afficher un tiret, et on ouvre l'action qui
+                le corrige — c'est l'alerte « sans N+1 » du tableau de bord.
+              -->
+              <UBadge v-else color="warning" variant="subtle" size="sm" icon="i-lucide-user-x">
+                Aucun notateur désigné
+              </UBadge>
+              <UButton
+                v-if="peutReattribuer"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-user-round-cog"
+                :title="evaluation.superieur ? 'Changer le notateur' : 'Désigner un notateur'"
+                @click="reattributionOpen = true"
+              >
+                {{ evaluation.superieur ? "Changer" : "Désigner" }}
+              </UButton>
               <span v-if="evaluation.session">
                 · Session {{ evaluation.session.description ?? formatDate(evaluation.session.debut_session) }}
               </span>
@@ -238,6 +263,12 @@ async function enregistrerContexte() {
           </div>
         </div>
       </div>
+      <EvaluationsReattributionModal
+        v-if="evaluation && peutReattribuer"
+        v-model:open="reattributionOpen"
+        :evaluation="evaluation"
+        @done="refresh"
+      />
     </BaseDataState>
 
     <!-- Contexte de la fiche (notateur) -->

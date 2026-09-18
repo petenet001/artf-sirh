@@ -30,6 +30,10 @@ const api = useReportingApi();
 const { dashboard, conges, evaluations, alertes, filtres, pending, error } = useReporting();
 const { enAttente: filesEnAttente, total: totalFiles, pending: filesPending } = useFilesAttente();
 const { points: serieMasse, variation: variationMasse } = useSerieMasseSalariale();
+const { series: seriesIndispo, totaux: totauxIndispo } = useSerieIndisponibilites();
+
+/** On n'affiche la courbe que si au moins un événement est tombé dans la fenêtre. */
+const indisponibilitesTracables = computed(() => totauxIndispo.value.some((t) => t.total > 0));
 
 const peutReporting = computed(() => auth.can("consulter-reporting"));
 
@@ -426,6 +430,33 @@ async function exporter(type: "effectifs" | "conges" | "evaluations", format: "c
               hint="Absences saisies sur l'année"
               to="/conges/absences"
             />
+          </div>
+
+          <div
+            v-if="indisponibilitesTracables"
+            class="rounded-xl border border-default bg-default p-5"
+          >
+            <BaseCardTitle icon="i-lucide-trending-up" title="Quand les agents s'absentent" />
+            <p class="mt-1 text-xs text-muted">
+              Nombre de congés et d'absences <strong class="font-medium text-toned">commençant</strong>
+              chaque mois, sur les douze derniers. Les deux courbes comptent des événements, pas des
+              jours : elles se lisent sur la même échelle.
+            </p>
+            <div class="mt-4">
+              <VizCourbe
+                :series="seriesIndispo"
+                vide-label="Pas encore assez d'historique pour tracer une courbe"
+              />
+            </div>
+            <p class="mt-3 border-t border-default pt-3 text-xs text-muted">
+              Sur douze mois :
+              <template v-for="(t, i) in totauxIndispo" :key="t.cle">
+                <span v-if="i">, </span>
+                <strong class="font-semibold text-highlighted">{{ t.total }}</strong>
+                {{ t.libelle.toLowerCase() }}
+              </template>
+              .
+            </p>
           </div>
 
           <div v-if="tauxAccordConges" class="rounded-xl border border-default bg-default p-5">

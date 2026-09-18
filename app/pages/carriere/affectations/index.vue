@@ -42,12 +42,13 @@ const columns: TableColumn<Affectation>[] = [
 
 <template>
   <BasePanel title="Affectations" subtitle="Rattachements des agents aux structures">
-    <BaseDataState
-      :pending="pending"
-      :error="error"
-      :empty="!affectations.length"
-      empty-label="Aucune affectation"
-    >
+    <!--
+      Pas de `:empty` ici : masquer la table masquerait sa barre d'outils, donc
+      le bouton « Nouvelle affectation » — or c'est précisément quand la liste
+      est vide qu'il faut pouvoir en créer une. L'état vide se rend dans la
+      table (`empty-label`), la barre d'outils reste en place.
+    -->
+    <BaseDataState :pending="pending" :error="error">
       <BaseTable
         :data="rows"
         :columns="columns"
@@ -55,6 +56,7 @@ const columns: TableColumn<Affectation>[] = [
         search-placeholder="Rechercher un agent, une structure…"
         :page-size="10"
         :row-to="(a) => `/carriere/affectations/${a.id}`"
+        empty-label="Aucune affectation enregistrée pour l'instant."
       >
         <template #filters>
           <USelect v-model="statut" :items="statutItems" class="w-48" />

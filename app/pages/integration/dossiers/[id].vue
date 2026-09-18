@@ -123,13 +123,22 @@ const moreActions = computed(() => {
   return [items];
 });
 
-const tabs = [
+/**
+ * L'onglet « À finaliser » n'apparaît qu'une fois le dossier intégré : avant,
+ * les tâches post-intégration n'existent pas encore et l'API ne renverrait rien
+ * d'utile. Après, c'est le seul endroit qui rappelle ce qui reste — le dossier
+ * reste `INTEGRE` quoi qu'il arrive (chemin B, note FE §3).
+ */
+const tabs = computed(() => [
   { label: "Vue d'ensemble", icon: "i-lucide-layout-list", value: "apercu" },
+  ...(statut.value === "INTEGRE"
+    ? [{ label: "À finaliser", icon: "i-lucide-list-checks", value: "taches" }]
+    : []),
   { label: "Pièces", icon: "i-lucide-paperclip", value: "pieces" },
   { label: "Circuit", icon: "i-lucide-git-merge", value: "circuit" },
   { label: "Actes", icon: "i-lucide-stamp", value: "actes" },
   { label: "Historique", icon: "i-lucide-history", value: "historique" },
-];
+]);
 const tab = ref("apercu");
 </script>
 
@@ -214,6 +223,9 @@ const tab = ref("apercu");
               </UCard>
             </div>
 
+            <div v-show="tab === 'taches'">
+              <IntegrationTachesPanel :key="`t${refreshKey}`" :dossier-id="id" />
+            </div>
             <div v-show="tab === 'pieces'">
               <IntegrationDocumentsPanel
                 :key="`d${refreshKey}`"

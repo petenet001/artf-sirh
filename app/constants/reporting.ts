@@ -24,6 +24,10 @@ export const VIZ = {
   categoriel: ["#4480bb", "#eb6834"],
   /** Absence de donnée : gris neutre, jamais une teinte de série. */
   neutre: "#c3c2b7",
+  /** Graduations et quadrillage : un cran au-dessus du fond, jamais plus. */
+  grille: "#e2e8f0",
+  /** Encoches de graduation dans une piste : c'est le fond qui gradue. */
+  encoche: "#ffffff",
 } as const;
 
 /**

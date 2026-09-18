@@ -1,15 +1,19 @@
-import { canAccessModule, landingRoute, moduleForPath } from "~/constants/modules";
+import { canAccessPath, landingRoute } from "~/constants/modules";
 
 /**
  * Garde globale : authentification + **contrôle d'accès par module**.
  * - non authentifié → /login (sauf routes publiques)
  * - authentifié sur une route publique → renvoyé vers son atterrissage
  * - agent simple arrivant sur la grille `/` → redirigé vers /mon-espace
- * - route d'un module non autorisé (URL tapée) → renvoyé vers son atterrissage
+ * - route non autorisée (URL tapée) → renvoyé vers son atterrissage
+ *
+ * La garde contrôle le **chemin**, pas seulement le module : plusieurs
+ * sous-onglets ont leur propre règle (`navGates`). Les vérifier ici évite qu'une
+ * URL tapée ouvre une page dont le premier appel API repartira en 403.
  */
 const PUBLIC_ROUTES = ["/login"];
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to, from) => {
   const token = useAuthToken();
   const isPublic = PUBLIC_ROUTES.includes(to.path);
 
@@ -28,7 +32,23 @@ export default defineNuxtRouteMiddleware((to) => {
   // `/` ne rend plus de grille : on redirige vers le 1er module autorisé.
   if (to.path === "/") return navigateTo(landing);
 
-  // Garde d'accès : empêche d'entrer dans un module interdit via l'URL.
-  const mod = moduleForPath(to.path);
-  if (mod && !canAccessModule(mod, ctx)) return navigateTo(landing);
+  // Garde d'accès : module ET sous-onglet. On renvoie vers l'atterrissage
+  // plutôt que vers une page « 403 » : le backend le recommande explicitement
+  // (note FE §2k.6) et c'est plus utile — on remet l'utilisateur sur ses rails
+  // au lieu de le laisser devant une impasse.
+  if (!canAccessPath(to.path, ctx)) {
+    // Mais une redirection muette laisse croire à un bug : on dit pourquoi.
+    // Seulement si la navigation vient de l'utilisateur (`from` renseigné et
+    // différent) — au premier chargement, la page n'est pas encore là pour
+    // porter le message.
+    if (import.meta.client && from.path !== to.path) {
+      useToast().add({
+        title: "Page non accessible",
+        description: "Votre compte n'a pas les droits pour cette page. Vous avez été ramené à votre accueil.",
+        color: "warning",
+        icon: "i-lucide-lock",
+      });
+    }
+    return navigateTo(landing);
+  }
 });

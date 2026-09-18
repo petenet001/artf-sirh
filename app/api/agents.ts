@@ -15,14 +15,44 @@ export interface AgentCreated {
 
 /**
  * Repository Agents. Seul endroit autorisé à connaître les routes agents.
- * Les agents vivent sous le préfixe `/integration` (module 2) et requièrent
- * une authentification. Toutes les fonctions throwent en cas d'erreur.
+ *
+ * ## Deux listes, et le choix n'est pas cosmétique
+ *
+ * L'API expose **deux** listes d'agents, et les confondre expose des données :
+ *
+ * | Route | Filtrée par structure ? | Permission |
+ * |---|---|---|
+ * | `GET /personnel/agents` | **oui** — vague F | `consulter-agents` |
+ * | `GET /integration/agents` | **non** — tous les dossiers | `consulter-recrutement` |
+ *
+ * `list()` pointe donc sur la liste **filtrée** : c'est la bonne réponse
+ * partout, sauf dans le module Intégration. Un chef de service doit voir les
+ * quatre agents de son service, pas les soixante et un de l'ARTF — et il n'a
+ * de toute façon pas `consulter-recrutement`, si bien que l'autre route lui
+ * répondrait 403.
+ *
+ * `listeDossiers()` garde la liste non filtrée, réservée au wizard de
+ * recrutement, qui travaille par définition sur des dossiers pas encore
+ * rattachés à une structure.
  */
 export function useAgentsApi() {
   const api = useApiClient();
 
   return {
+    /** Liste **filtrée** par la structure de l'utilisateur (vague F). */
     list: (params?: ListParams) =>
+      api<ApiCollection<Agent>>("/personnel/agents", { query: params }),
+
+    /** Stagiaires, filtrés eux aussi. */
+    stagiaires: (params?: ListParams) =>
+      api<ApiCollection<Agent>>("/personnel/stagiaires", { query: params }),
+
+    /**
+     * Tous les dossiers, **sans filtre de structure** — module Intégration
+     * uniquement (`consulter-recrutement`). Ne jamais l'utiliser pour une
+     * liste ou un sélecteur du quotidien.
+     */
+    listeDossiers: (params?: ListParams) =>
       api<ApiCollection<Agent>>("/integration/agents", { query: params }),
 
     getById: (id: number) =>

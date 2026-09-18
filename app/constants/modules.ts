@@ -80,7 +80,12 @@ export const modules: AppModule[] = [
     ],
     navGates: {
       "/mon-entite": { anyScope: ["entite"] },
-      "/tableau-de-bord": { anyPermission: ["consulter-reporting", "consulter-agents"] },
+      // `consulter-reporting` **seul** : la page n'appelle que `/reporting/*`.
+      // `consulter-agents` y figurait, ce qui ouvrait la vue d'ensemble à tous
+      // les chefs — qui n'ont pas la permission de reporting et n'y auraient
+      // récolté que des 403. La recette FE §2k.8 le dit : un directeur ne voit
+      // pas le reporting.
+      "/tableau-de-bord": { anyPermission: ["consulter-reporting"] },
     },
   },
   {
@@ -194,14 +199,25 @@ export const modules: AppModule[] = [
     ],
     // ⚠️ `valider-evaluations` est détenu par **tous les chefs** (seeder) : il
     // ouvre la file de notation, jamais les écrans RH — ceux-là se gatent sur
-    // le rôle (`rh`/`admin`) ou sur `creer-evaluations`, propre à la DRHLL.
+    // `creer-evaluations`, propre à la DRHL.
     navGates: {
       "/evaluations/a-noter": { anyPermission: ["valider-evaluations"] },
       "/evaluations/sessions": { anyPermission: ["creer-evaluations"] },
-      "/evaluations/validation-rh": { anyRole: ["rh", "admin"] },
+      // `creer-evaluations` désigne exactement la DRHL (`rh` + `admin`) : c'est
+      // la permission, et non le nom du rôle, qui décide — la note FE §2k
+      // interdit explicitement de tester `role === "rh"` pour un écran.
+      "/evaluations/validation-rh": { anyPermission: ["creer-evaluations"] },
       // Commissions : le DG y siège (art. 68–70) et propose les exceptionnels.
-      "/evaluations/tableau": { anyRole: ["rh", "admin", "directeur-general"] },
-      "/evaluations/bonifications": { anyRole: ["rh", "admin", "directeur-general"] },
+      // Aucune permission ne dit « RH ou DG » — la règle cumule donc les deux
+      // conditions (une porte est ouverte si l'UNE est vraie).
+      "/evaluations/tableau": {
+        anyPermission: ["creer-evaluations"],
+        anyRole: ["directeur-general"],
+      },
+      "/evaluations/bonifications": {
+        anyPermission: ["creer-evaluations"],
+        anyRole: ["directeur-general"],
+      },
       "/evaluations/criteres": { anyPermission: ["creer-evaluations"] },
     },
   },
@@ -239,17 +255,44 @@ export const modules: AppModule[] = [
   {
     key: "affaires-sociales",
     label: "Affaires sociales",
-    description: "Organismes, affiliations et ayants droit (CCN art. 58–59).",
+    description: "Protection sociale, prestations CCN et santé au travail (art. 58–59, 119–135).",
     icon: "i-lucide-heart-handshake",
     to: "/affaires-sociales/affiliations",
     match: ["/affaires-sociales"],
     // P1 : pas de self-service agent, et les chefs n'ont pas le menu.
-    gate: { anyPermission: ["consulter-affaires-sociales"] },
+    // Miroir exact des routes `/affaires-sociales` : elles acceptent
+    // `consulter-affaires-sociales` **ou** `decider-prestations` (le DG décide
+    // sans gérer). Le bureau B.A.S. (`rh-affaires-sociales`) porte les deux
+    // permissions de gestion, il entre donc par la première.
+    gate: { anyPermission: ["consulter-affaires-sociales", "decider-prestations"] },
     nav: [
       [
         { label: "Affiliations", icon: "i-lucide-id-card", to: "/affaires-sociales/affiliations" },
         { label: "Ayants droit", icon: "i-lucide-users", to: "/affaires-sociales/ayants-droit" },
+        { label: "Prestations", icon: "i-lucide-hand-coins", to: "/affaires-sociales/prestations" },
+      ],
+      // Santé au travail (D.3.5) : les trois écrans se lisent ensemble, on les
+      // sépare du bloc « protection sociale » plutôt que d'allonger une liste.
+      [
+        { label: "Arrêts de santé", icon: "i-lucide-bed", to: "/affaires-sociales/arrets" },
+        {
+          label: "Prises en charge",
+          icon: "i-lucide-stethoscope",
+          to: "/affaires-sociales/prises-en-charge",
+        },
+        {
+          label: "Visites médicales",
+          icon: "i-lucide-heart-pulse",
+          to: "/affaires-sociales/visites-medicales",
+        },
+      ],
+      [
         { label: "Organismes", icon: "i-lucide-building", to: "/affaires-sociales/organismes" },
+        {
+          label: "Structures sanitaires",
+          icon: "i-lucide-hospital",
+          to: "/affaires-sociales/structures-sanitaires",
+        },
       ],
     ],
   },
@@ -278,9 +321,12 @@ export const modules: AppModule[] = [
     to: "/remuneration/grille",
     match: ["/remuneration", "/paie"],
     // `consulter-salaires` a été accordé au DG pour les reclassements : gater
-    // dessus ouvrirait la grille et les salaires de tous les agents. Le module
-    // reste donc au métier RH ; le DG passe par Carrière > Reclassements.
-    gate: { anyRole: ["rh", "admin"] },
+    // dessus ouvrirait la grille et les salaires de tous les agents. On gate
+    // donc sur `gerer-salaires`, que le DG n'a pas — et que la vague F a donné
+    // au seul bureau Solde (`rh-solde`), en plus du `rh` généraliste. Tester
+    // `anyRole: ["rh"]` aurait au contraire enfermé dehors tout le bureau Solde.
+    // Le DG, lui, passe par Carrière > Reclassements.
+    gate: { anyPermission: ["gerer-salaires"] },
     nav: [
       [
         { label: "Grille salariale", icon: "i-lucide-table-2", to: "/remuneration/grille" },
@@ -293,16 +339,34 @@ export const modules: AppModule[] = [
   {
     key: "administration",
     label: "Administration",
-    description: "Structure organisationnelle et référentiels métier.",
+    description: "Comptes, structure organisationnelle et référentiels métier.",
     icon: "i-lucide-settings",
     to: "/structure/administrations",
-    match: ["/structure", "/referentiels"],
+    match: ["/structure", "/referentiels", "/administration"],
     // NB : `consulter-referentiels` est accordé largement (même à l'agent, pour
     // les listes déroulantes) → on gate sur des permissions réellement
     // « administration » pour ne pas exposer ce module à un agent simple.
     gate: { anyPermission: ["consulter-structure", "consulter-utilisateurs"] },
+    navGates: {
+      // Les comptes ne se montrent qu'à qui peut les consulter : un chef de
+      // service a `consulter-structure` (il entre dans le module) mais n'a
+      // rien à faire dans la gestion des accès.
+      "/administration/utilisateurs": { anyPermission: ["consulter-utilisateurs"] },
+      // `consulter-roles` : la RH lit la configuration, l'admin la modifie.
+      "/administration/roles": { anyPermission: ["consulter-roles"] },
+      // Seules portes gardées par un **rôle** et non par une permission : les
+      // routes `/audit-logs` et `/parametres-application` portent `role:admin`.
+      // La note FE §2k assume l'exception ; on la reproduit telle quelle, y
+      // compris son corollaire — la RH n'y a pas accès.
+      "/administration/audit": { anyRole: ["admin"] },
+      "/administration/parametres": { anyRole: ["admin"] },
+    },
     nav: [
       [
+        { label: "Utilisateurs", icon: "i-lucide-users", to: "/administration/utilisateurs" },
+        { label: "Rôles et permissions", icon: "i-lucide-key-round", to: "/administration/roles" },
+        { label: "Journal d'audit", icon: "i-lucide-scroll-text", to: "/administration/audit" },
+        { label: "Paramètres", icon: "i-lucide-sliders", to: "/administration/parametres" },
         {
           label: "Structure",
           icon: "i-lucide-building-2",
@@ -408,6 +472,35 @@ export function moduleEntry(m: AppModule, ctx: AccessContext): string {
     ?? visibles.flatMap((i) => i.children ?? []).find((i) => typeof i.to === "string");
 
   return (premier?.to as string | undefined) ?? m.to;
+}
+
+/**
+ * L'URL est-elle réellement ouverte à cet utilisateur ?
+ *
+ * `canAccessModule` ne regardait que la porte du **module**. Or plusieurs
+ * sous-onglets ont leur propre règle (`navGates`) : `/evaluations/validation-rh`
+ * est dans un module ouvert à tous les chefs, mais réservé à la RH. Une URL
+ * tapée à la main passait donc la garde, la page s'affichait, l'appel partait
+ * et revenait en **403**.
+ *
+ * On applique ici la règle la plus **spécifique** qui préfixe le chemin : une
+ * fiche `/evaluations/validation-rh/12` hérite de la règle de son onglet.
+ * Sans règle propre, seule la porte du module compte.
+ */
+export function canAccessPath(path: string, ctx: AccessContext): boolean {
+  const m = moduleForPath(path);
+  if (!m) return true; // hors module (login, 404…) : rien à garder ici.
+  if (!canAccessModule(m, ctx)) return false;
+
+  let regle: { gate: ModuleGate; longueur: number } | undefined;
+  for (const [route, gate] of Object.entries(m.navGates ?? {})) {
+    const correspond = path === route || path.startsWith(`${route}/`);
+    if (correspond && (!regle || route.length > regle.longueur)) {
+      regle = { gate, longueur: route.length };
+    }
+  }
+
+  return regle ? satisfiesGate(regle.gate, ctx) : true;
 }
 
 /**

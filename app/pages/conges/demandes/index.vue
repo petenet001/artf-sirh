@@ -3,6 +3,7 @@ import type { TableColumn } from "@nuxt/ui";
 import type { DemandeConge } from "~/schemas/demande-conge";
 import { STATUTS_DEMANDE_CONGE } from "~/constants/enums";
 import { agentNom, STATUT_DEMANDE_LABEL, type EtapeConge } from "~/constants/conges";
+import { estRh } from "~/constants/roles";
 
 /**
  * Liste des demandes de congé. Portées : « Mes demandes » (agent connecté),
@@ -16,7 +17,7 @@ const { demandes, scope, pending, error, refresh } = useDemandesConge();
 // Cartes de tête : compteurs globaux (vue RH). `par_statut` couvre les 8 statuts
 // de l'enum, y compris ceux à zéro.
 const congesApi = useDemandesCongeApi();
-const peutVoirStats = computed(() => auth.can("valider-conges") || auth.hasRole("rh") || auth.hasRole("admin"));
+const peutVoirStats = computed(() => auth.can("valider-conges") || estRh(auth.hasRole));
 const { data: statsData } = useAsyncData("conges-statistiques", () =>
   peutVoirStats.value ? congesApi.statistiques() : Promise.resolve(null),
 );
@@ -27,7 +28,7 @@ const enAttente = computed(() => {
 });
 
 const peutValider = computed(() => auth.can("valider-conges"));
-const peutVoirToutes = computed(() => peutValider.value || auth.hasRole("rh") || auth.hasRole("admin"));
+const peutVoirToutes = computed(() => peutValider.value || estRh(auth.hasRole));
 const peutCreer = computed(() => auth.can("creer-conges"));
 
 const scopeItems = computed(() => [

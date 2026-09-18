@@ -234,3 +234,30 @@ export function actionsTableau(fiche: Evaluation, acteur: ActeurEvaluation): Act
 export function peutAvancerEchelon(fiche: Evaluation): boolean {
   return fiche.commission_decision === "favorable" && !fiche.echelon_avance;
 }
+
+/**
+ * Le notateur de cette fiche peut-il être réattribué ? (note FE §7b)
+ *
+ * Deux conditions serveur, plus une d'identité :
+ * - la **session doit être ouverte** — sur une session clôturée, les fiches
+ *   sont figées ;
+ * - la **fiche ne doit pas être terminée** : une fois finalisée, rejetée ou
+ *   annulée, changer le notateur réécrirait qui a signé ;
+ * - c'est un geste RH (`creer-evaluations`), pas un geste de chef : un
+ *   supérieur ne se retire pas lui-même d'une fiche qui le gêne.
+ *
+ * Le besoin est réel : l'alerte de conformité « agents sans supérieur » du
+ * tableau de bord n'avait aucune action pour la résoudre côté évaluation.
+ */
+export function peutReattribuerSuperieur(
+  fiche: Pick<Evaluation, "statut"> & { session?: { statut?: string | null } | null },
+  acteur: Pick<ActeurEvaluation, "peutCreer">,
+): boolean {
+  if (!acteur.peutCreer) return false;
+  // Session absente du payload : on ne présume pas qu'elle est ouverte.
+  if (fiche.session?.statut !== "ouverte") return false;
+  return !FICHE_TERMINEE.includes(fiche.statut as (typeof FICHE_TERMINEE)[number]);
+}
+
+/** Statuts après lesquels une fiche ne bouge plus. */
+const FICHE_TERMINEE = ["finalisee", "rejetee", "annulee"] as const;

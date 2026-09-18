@@ -104,5 +104,19 @@ export function useAffectationsApi() {
 
     acteLot: (id: number) =>
       api<Blob>(`/carriere/affectations/lots/${id}/acte`, { responseType: "blob" }),
+
+    /**
+     * ZIP des notes de service **individuelles** d'un ensemble d'affectations.
+     *
+     * À ne pas confondre avec `acteLot`, qui rend l'acte **collectif** du lot :
+     * ici on récupère une note par agent, celle qu'on lui remet en main propre.
+     * Les identifiants sont libres — ils n'ont pas à appartenir au même lot.
+     */
+    notesServiceLot: (affectationIds: number[]) =>
+      api<Blob>("/carriere/affectations/notes-service/lot", {
+        method: "POST",
+        body: { affectation_ids: affectationIds },
+        responseType: "blob",
+      }),
   };
 }

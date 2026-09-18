@@ -1,3 +1,5 @@
+import { estRh } from "~/constants/roles";
+
 /** Une file d'attente : ce qui réclame une décision de l'utilisateur connecté. */
 export interface FileAttente {
   cle: string;
@@ -35,7 +37,10 @@ export function useFilesAttente() {
   const affectationsApi = useAffectationsApi();
   const nominationsApi = useNominationsApi();
 
-  const estRh = computed(() => auth.hasRole("rh") || auth.hasRole("admin"));
+  // Vague F : la DRHL est éclatée en cinq rôles de bureau. Tester `hasRole("rh")`
+  // seul priverait de leurs files tous les agents de bureau, qui portent
+  // pourtant les permissions correspondantes.
+  const estCoteRh = computed(() => estRh(auth.hasRole));
 
   /**
    * Déclaration d'une file : sa condition d'existence et son compteur. Le
@@ -90,7 +95,7 @@ export function useFilesAttente() {
       action: "à valider (RH)",
       icone: "i-lucide-shield-check",
       lien: "/evaluations/validation-rh",
-      quand: () => estRh.value && auth.can("valider-evaluations"),
+      quand: () => estCoteRh.value && auth.can("valider-evaluations"),
       compter: async () => taille(await evaluationsApi.list({ statut: "en_validation_rh" })),
     },
     {
@@ -99,7 +104,7 @@ export function useFilesAttente() {
       action: "à trancher",
       icone: "i-lucide-message-square-warning",
       lien: "/evaluations/validation-rh",
-      quand: () => estRh.value && auth.can("valider-evaluations"),
+      quand: () => estCoteRh.value && auth.can("valider-evaluations"),
       compter: async () => taille(await reclamationsApi.enAttente()),
     },
     {

@@ -57,6 +57,7 @@ onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
           <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :label="active?.label" />
         </UDropdownMenu>
 
+        <AppPerimetreBadge />
         <AppNotificationsBell />
         <AppUserMenu />
       </div>

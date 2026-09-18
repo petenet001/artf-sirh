@@ -1,16 +1,46 @@
 <script setup lang="ts">
 import type { TabsItem } from "@nuxt/ui";
+import { LIBELLE_NIVEAU, vueEffective } from "~/constants/utilisateurs";
 import { statutAgentLabel } from "~/constants/personnel";
 
 const auth = useAuthStore();
 
-// Rafraîchit la session (rôles/permissions à jour) à l'ouverture de la page.
+// La session est déjà rafraîchie au démarrage (`plugins/session.client.ts`).
+// On la relit quand même ici : c'est la page où l'on vient précisément vérifier
+// ses droits, souvent juste après qu'un administrateur les a changés.
 onMounted(async () => {
   try {
     await auth.fetchSession();
   } catch {
     // session expirée : le client HTTP redirige déjà vers /login.
   }
+});
+
+/**
+ * Vague F — périmètre de l'utilisateur.
+ *
+ * On affiche **ce qu'il voit** (`vue_personnel`, calculé par le serveur) et non
+ * son rattachement : depuis `consulter-agents-global`, un compte du métier RH
+ * est rattaché à un bureau tout en voyant l'effectif entier. Le rattachement
+ * reste indiqué à côté, comme contexte d'organigramme.
+ *
+ * C'est ici que quelqu'un vient comprendre pourquoi ses listes sont plus
+ * courtes que celles d'un collègue : autant que la réponse soit exacte.
+ */
+const vuePersonnel = computed(() => (auth.user ? vueEffective(auth.user) : "globale"));
+
+const bureauRattachement = computed(() => {
+  const u = auth.user;
+  if (!u) return "—";
+  const b = u.bureau;
+  const nom = b ? (b.sigle ? `${b.nom} (${b.sigle})` : b.nom) : u.bureau_id ? `bureau nº ${u.bureau_id}` : null;
+
+  if (vuePersonnel.value === "globale") {
+    return nom
+      ? `Tout le personnel — rattaché à ${nom}`
+      : "Tout le personnel (aucun cloisonnement)";
+  }
+  return nom ? `${LIBELLE_NIVEAU[vuePersonnel.value]} — ${nom}` : LIBELLE_NIVEAU[vuePersonnel.value];
 });
 
 // Fiche agent liée (chargée seulement si l'utilisateur en a une).
@@ -86,6 +116,11 @@ const tabs = computed<TabsItem[]>(() => [
                 <BaseInfoItem icon="i-lucide-mail" label="Email" :value="auth.user.email" />
                 <BaseInfoItem icon="i-lucide-hash" label="Identifiant" :value="auth.user.id" />
                 <BaseInfoItem icon="i-lucide-shield-check" label="Statut du compte" :value="compteActif ? 'Actif' : 'Désactivé'" />
+                <BaseInfoItem
+                  icon="i-lucide-building-2"
+                  label="Périmètre de consultation"
+                  :value="bureauRattachement"
+                />
                 <BaseInfoItem icon="i-lucide-calendar-plus" label="Membre depuis" :value="formatDateLong(auth.user.created_at)" />
                 <BaseInfoItem icon="i-lucide-clock" label="Dernière mise à jour" :value="formatDateTime(auth.user.updated_at)" />
               </dl>

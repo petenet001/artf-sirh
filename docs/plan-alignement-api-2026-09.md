@@ -400,12 +400,442 @@ mensuelles, blocs discipline et intégration, compteurs de files personnalisées
 de pagination » de l'API, après l'inbox des notifications. Le type
 `Paginated<T>` existait déjà.
 
+## 5 quater. Pull backend du 17/09 — vague F, prestations, santé — ✅ 2026-09-18
+
+Trois apports, d'impact très inégal.
+
+### Vague F — cloisonnement par bureau DRHL (le plus urgent)
+
+Le backend ajoute `users.bureau_id`, un scope `maStructure` sur les agents,
+congés, absences et sanctions, et surtout **cinq rôles** :
+`rh-personnel`, `rh-solde`, `rh-formation`, `rh-affaires-sociales`, `rh-etude`.
+
+C'était une **régression en attente** : trois portes du front testaient
+`anyRole: ["rh", "admin"]`. Un agent du bureau Solde, porteur de
+`gerer-salaires`, se serait vu refuser le module Rémunération.
+
+Ce qui a été fait :
+
+- `constants/roles.ts` — `ROLES_RH`, `estRh()`, et la règle écrite noir sur
+  blanc : **on gate par permission**, le rôle ne sert que là où aucune
+  permission ne discrimine. Élargir `anyRole` à tous les rôles RH aurait ouvert
+  la paie au bureau Formation ;
+- porte Rémunération : `anyRole: ["rh","admin"]` → `anyPermission: ["gerer-salaires"]`.
+  Exact : `rh` et `rh-solde` l'ont, le DG non (il n'a que `consulter-salaires`).
+  **La décision F3 est donc révisée** — le résultat pour le DG est inchangé ;
+- porte Affaires sociales : `+ decider-prestations`, miroir des routes ;
+- `hasRole("rh")` remplacé par `estRh()` dans les files d'attente, l'acteur
+  d'évaluation, les soldes de congé, les demandes et les reclassements ;
+- `userSchema` porte `bureau_id` / `bureau`, `useUsersApi` les deux routes de
+  rattachement, et `/profil` affiche le périmètre — « Accès global » quand il
+  n'y a pas de cloisonnement, pour que personne ne cherche pourquoi sa liste
+  est plus courte que celle du voisin ;
+- le fixture de `modules.test.ts` avait **dérivé** du seeder (il manquait
+  `gerer-salaires` à `rh`) : recopié, et les cinq rôles de bureau ajoutés avec
+  leurs tests de porte.
+
+Le front ne refiltre rien : le cloisonnement est un périmètre serveur.
+
+### D.3.4 Prestations et D.3.5 Santé (63 routes)
+
+Prestations CCN ponctuelles (art. 119–121), arrêts de santé (132–135), prises
+en charge médicales (122–127), visites médicales, structures sanitaires.
+
+Les trois dossiers **instruits** partagent rigoureusement le même circuit
+(`brouillon → soumise → instruite → accordée | refusée | classée`), les mêmes
+pièces, le même PDF de décision et les mêmes permissions. Ils ont donc un
+socle commun plutôt que trois copies :
+
+| Fichier | Rôle |
+|---|---|
+| `schemas/dossier-social.ts` | champs de circuit, pièce, corps des transitions |
+| `api/dossiers-sociaux.ts` | fabrique générique des 18 routes communes |
+| `constants/dossiers-sociaux.ts` | statuts, libellés CCN, `actionsDossierSocial()` |
+| `components/social/CircuitDossier.vue` | statut + transitions + saisies |
+| `components/social/PiecesDossier.vue` | pièces typées, éditables en brouillon seulement |
+
+Trois partis pris d'écran :
+
+1. **les montants ne sont jamais fusionnés.** Demandé / barème CCN / accordé
+   sont trois colonnes distinctes : le DG peut accorder autre chose que le
+   calcul, et c'est précisément ce qu'on doit pouvoir constater. Sur une prise
+   en charge s'y ajoute le **reste à charge**, seule question que l'agent se
+   pose vraiment ;
+2. **la simulation montre le chemin, pas seulement le résultat** — traitement de
+   base, ancienneté, jours déduits, mois du barème. Un montant qui surprend doit
+   pouvoir s'expliquer sans ouvrir la convention ;
+3. **les visites médicales ouvrent sur leur alerte**, pas sur leur archive : la
+   liste des agents sans visite annuelle est la seule chose qui appelle une
+   action, le reste est de l'historique.
+
+### Deltas mineurs du même pull
+
+| Route | Décision |
+|---|---|
+| `GET /discipline/sanctions/a-valider` | **alias** de `a-prononcer` (même méthode) — rien à faire, le front utilise déjà l'original |
+| `POST /avancements/evaluations/{id}/signer-evaluateur` | **remplacée** par le circuit d'avis phase 2, d'après le commentaire de `routes/api.php` — non branchée |
+| `GET /discipline/moi/avertissements/{id}` | ajoutée au repository |
+| `POST /carriere/affectations/notes-service/lot` | ZIP des notes **individuelles**, à ne pas confondre avec l'acte collectif du lot ; bouton sur la fiche de lot |
+| Domaine des comptes de test | `arft.cg` → **`artf.cg`** (coquille corrigée côté API) — `CLAUDE.md` mis à jour |
+
+### ⚠️ Toujours pas vérifié contre une API qui tourne
+
+La base SQLite locale accuse **14 migrations en retard**, dont celles des
+prestations, de la santé et de `users.bureau_id`. Les rôles de bureau n'existent
+donc pas encore en local. Le pull apporte enfin les seeders qui rendraient un
+essai bout en bout possible :
+
+```bash
+cd ../project-api-rh-artf && php artisan migrate && php artisan db:seed
+```
+
+Cette commande touche la base de développement : elle n'a pas été lancée sans
+accord. Tant qu'elle ne l'est pas, **rien de tout ceci n'a été exercé contre une
+API réelle** — seulement contre le contrat lu dans le code.
+
+## 5 quinquies. Déconnexions inexpliquées + pull du 18/09 — ✅ 2026-09-18
+
+### Le symptôme
+
+Accéder à une page interdite **déconnectait**, avec un
+`{"message":"Accès refusé."}` en console et rien à l'écran.
+
+Deux causes distinctes, cumulées.
+
+**1. Le client HTTP confondait 401 et 403.**
+
+```ts
+if (response.status === 401 || response.status === 403) { clearSession(); … }
+```
+
+Or ce ne sont pas les mêmes évènements :
+
+| | Ce que ça veut dire | Ce qu'il faut faire |
+|---|---|---|
+| **401** | le token ne vaut plus rien | couper la session, renvoyer au login |
+| **403** | la session est **valide**, il manque une permission | ne rien couper, expliquer |
+
+La note backend §2k le dit mot pour mot (« 403 → toast + retirer l'action ;
+401 → login »). La règle vit désormais dans `utils/httpErreur.ts`, pure et
+testée : une règle qui a déjà été fausse ne doit pas rester implicite.
+
+**2. La garde de route ne regardait que le module.**
+
+`canAccessModule` ignorait les `navGates`. Une URL tapée vers
+`/evaluations/validation-rh` passait la garde pour un chef de service (le module
+Évaluations lui est ouvert), la page s'affichait, son premier appel repartait en
+403 — et la cause n° 1 le déconnectait. Nouveau helper `canAccessPath()` : il
+retient la règle la plus **spécifique** qui préfixe le chemin, si bien qu'une
+fiche `/evaluations/validation-rh/12` hérite de la règle de son onglet.
+
+**3. Une cause de fond, que le backend contournait.**
+
+La note demandait à l'utilisateur de « se déconnecter puis se reconnecter après
+un changement de rôles ». Le store persiste en effet `user` — donc ses
+permissions — dans le navigateur : après la vague F, le front affichait encore
+les menus d'avant, et chaque clic finissait en 403. Ce n'est pas à l'utilisateur
+de le savoir : `plugins/session.client.ts` relit `/user` au démarrage. Il échoue
+silencieusement (réseau coupé ≠ session morte).
+
+### Ce qui a changé côté ressenti
+
+| Avant | Après |
+|---|---|
+| Page interdite → déconnexion sèche | Redirection vers l'accueil + « Votre compte n'a pas les droits pour cette page » |
+| 403 sur une action → déconnexion sèche | Toast « Action non autorisée », qui précise que **la session reste ouverte** |
+| 401 → éjection muette sur `/login` | `?raison=session` → encart « Votre session a expiré » |
+| 500 muet → « Une erreur est survenue » | « Le serveur n'a pas répondu » : technique, pas métier |
+
+### Alignement sur la note FE §2k (pull du 18/09)
+
+- `/evaluations/validation-rh` passe de `anyRole: ["rh","admin"]` à
+  `anyPermission: ["creer-evaluations"]` — même population, mais la note
+  **interdit** de tester le nom du rôle pour un écran (un compte cumule souvent
+  `directeur` + `rh`, ou `agent` + `rh-formation`) ;
+- `/evaluations/tableau` et `/evaluations/bonifications` cumulent
+  `creer-evaluations` **ou** le rôle `directeur-general` : aucune permission ne
+  dit « RH ou DG » ;
+- badge **« Vue : {bureau} »** dans la navbar pour les comptes cloisonnés. Sans
+  lui, voir douze agents là où un collègue en voit deux cents se lit comme un
+  bug, pas comme une règle ;
+- le rôle `rh` gagne `consulter-roles`, les rôles hiérarchiques gagnent
+  `creer-conges` / `creer-absences` (les chefs posent aussi leurs congés) —
+  fixture de test recalée ;
+- `User::niveauCloisonnement()` dérive le périmètre de la fonction
+  (directeur → direction, chef de service → service, sinon bureau). Purement
+  serveur : le front n'a rien à refiltrer, seulement à l'annoncer.
+
+Déjà conformes, vérifiés sans modification : le store **unionne** les
+permissions de tous les rôles (`flatMap`, pas `roles[0]`), et `hasRole` teste
+l'ensemble des rôles.
+
+## 5 sexies. Bouton « Nouveau » invisible sur une liste vide — ✅ 2026-09-18
+
+Signalé sur les nominations : **aucune nomination → aucun bouton pour en créer
+une.** Impasse complète.
+
+La cause est dans `BaseDataState` : son état `empty` se rend **à la place** du
+contenu. Sur une liste, cela emporte la table *et sa barre d'outils*, où vit le
+bouton de création :
+
+```vue
+<BaseDataState :empty="!nominations.length">   <!-- ✗ masque tout -->
+  <BaseTable>
+    <template #actions>
+      <UButton>Nouvelle nomination</UButton>   <!-- jamais rendu -->
+```
+
+Deux écrans touchés — nominations et affectations. Les référentiels y
+échappaient : leur bouton « Nouveau » vit dans `BasePanel`, hors du
+`BaseDataState`.
+
+**La règle, désormais écrite dans les deux composants :** `empty` sert à « la
+ressource n'existe pas » (fiche introuvable), jamais à « la liste est vide ».
+Une liste vide se rend **dans** la table, dont `BaseTable` porte maintenant
+l'état par défaut (`empty-label`, en français — `UTable` affichait sinon son
+libellé anglais).
+
+Comme le bug se reproduit d'un simple copier-coller et ne casse aucun test
+fonctionnel, il est verrouillé par un **test structurel**
+(`DataState.test.ts`) : il balaie les fichiers `.vue` et échoue si une barre
+d'outils de table se trouve sous un `empty` qui l'effacerait. Vérifié : il
+détecte bien les deux pages dans leur version d'avant correctif.
+
+## 5 septies. Écran des comptes utilisateurs — ✅ 2026-09-18
+
+La vague F était implémentée des deux côtés mais **inutilisable** : les routes
+`POST/DELETE /users/{id}/bureau` n'avaient aucun point d'entrée dans l'interface,
+et le module Administration n'avait pas d'écran de comptes.
+
+`/administration/utilisateurs` — liste, création, édition, suppression, et
+surtout le rattachement à un bureau. Trois partis pris :
+
+1. **le rattachement est présenté comme une restriction.** « Rattacher au bureau
+   X » se lit spontanément comme « donner accès à X » ; c'est l'inverse. L'écran
+   affiche la conséquence exacte *avant* de valider, et le niveau réel dépend de
+   la fonction (directeur → direction, chef de service → service, sinon bureau) ;
+2. **tous les rôles sont affichés**, jamais le premier seul — c'est le piège que
+   la note FE §2k signale (`directeur` + `rh`, `agent` + `rh-formation`). Ils
+   sont colorés par famille (système / RH / hiérarchie / agent) plutôt qu'un ton
+   par rôle ;
+3. l'API ne pose qu'**un** rôle par écriture : l'écran le dit, au lieu de laisser
+   croire qu'il gère le cumul.
+
+Le sous-onglet est gaté sur `consulter-utilisateurs` : un chef de service entre
+dans Administration par `consulter-structure` mais n'y voit pas les comptes.
+
+**Reste à faire** : l'écran des rôles et permissions (`/roles`,
+`/roles/{id}/permissions`, `GET /permissions`) — le contrat est en place
+(`useRolesApi`, `usePermissionsApi`), l'écran non.
+
+## 5 octies. Audit des notes FE du backend — ✅ 2026-09-18
+
+Relecture complète de `doc/note-fe-etat-implementations.md` (2 155 lignes) et de
+`note-fe-roles-comptes.md`, croisée avec un **audit de surface** : les
+223 méthodes de la couche `api/` confrontées à leurs appelants réels.
+
+### Corrigé
+
+| Écart | Prescription | Correctif |
+|---|---|---|
+| Vue d'ensemble RH ouverte à tous les chefs | §2k.8 : « directeur → **pas** Reporting » | La porte était `consulter-reporting` **ou** `consulter-agents`. Or la page n'appelle que `/reporting/*` : tout chef y récoltait des 403. Ramenée à `consulter-reporting` seul |
+| Checklist post-intégration absente | §3 : « `GET …/taches-post-integration`, compter uniquement `obligatoire === true` » | Onglet « À finaliser » sur le dossier, visible une fois `INTEGRE`. Avancement sur les seules tâches obligatoires ; les étapes 14–15 (affectation, nomination) restent affichées mais hors décompte |
+| Réattribution du notateur absente | §7b : section dédiée `PUT …/superieur` | Bouton sur la fiche. Débloque l'alerte « agents sans N+1 » du tableau de bord, qui n'avait aucune action pour se résoudre. Règle `peutReattribuerSuperieur` testée : RH seulement, session ouverte, fiche non terminée |
+| Résiliation de contrat absente | §4 (cycle des contrats) | Les actions étaient toutes conditionnées à un essai ouvert : passé la période probatoire, plus aucun moyen de mettre fin à un contrat. Bouton « Résilier », distinct de la rupture d'essai (art. 49) qui est un autre acte |
+| Jeu de rôles de test dérivé | §2k.5 | `directeur` et `chef-bureau` manquaient ; `chef-service` avait un jeu incomplet. Les trois sont identiques dans le seeder — décrits une fois. `admin` ne collectait que les portes de module, jamais celles de sous-onglet : il se retrouvait sans `consulter-reporting` |
+| Recette d'acceptation non testée | §2k.8 | Les sept profils de la recette sont désormais des tests : c'est là qu'on attrape une porte trop large avant l'utilisateur |
+
+### Vérifié conforme, sans modification
+
+Notifications (la cloche lit `meta.non_lues` de l'inbox — un appel au lieu de
+deux), discipline (les cinq files et les deux PDF), affaires sociales,
+formations (**y compris** la conversion stagiaire → agent, déjà en place),
+paie (bulletin enrichi par ligne de lot), congés, positions conventionnelles,
+et les deux pièges de §2k : le store **unionne** les permissions de tous les
+rôles, `hasRole` les teste toutes.
+
+### Écarts assumés, à trancher
+
+1. **Carrière fermée à la hiérarchie.** La matrice §2k.3 place « Carrière
+   (affectations, nominations) » sous `consulter-nominations`, que portent les
+   directeurs et chefs. Je ne l'ai **pas** ouverte : les routes carrière n'ont
+   aucun middleware de permission (la note le reconnaît — « routes encore peu
+   middleware ») et les affectations **ne sont pas** cloisonnées par la vague F,
+   qui ne couvre que `Agent`, `Absence`, `DemandeConge` et `Sanction`. Ouvrir
+   l'onglet exposerait donc toutes les affectations de l'ARTF à chaque chef,
+   sans garde serveur. À arbitrer avec le backend.
+
+2. **Écran des rôles et permissions.** `GET/POST /roles`,
+   `POST /roles/{id}/permissions`, `POST /roles/{id}/dupliquer`,
+   `GET /permissions` : le contrat est en place, l'écran non. §2k le liste
+   (« Rôles / permissions | `consulter-roles` »).
+
+3. **Routes redondantes laissées de côté**, volontairement :
+   `GET /notifications/non-lues` (l'inbox porte déjà le compteur),
+   `GET /avancements/sessions/{id}/tableau` (l'écran a besoin des fiches
+   *non* inscrites pour offrir la bascule), `GET /reporting/effectifs` et
+   `/repartitions` (le dashboard les embarque), et les variantes de bulletin de
+   paie qui mènent au même PDF.
+
+## 5 nonies. Matrice des menus §2k.3 — vérifiée ligne à ligne — ✅ 2026-09-18
+
+Les vingt-trois lignes de la matrice du backend, confrontées une à une à
+`constants/modules.ts`. Résultat : **trois entrées de menu prescrites n'avaient
+aucun écran**, les autres étaient conformes.
+
+### Écrans créés
+
+| Ligne de la matrice | Porte | Écran |
+|---|---|---|
+| Rôles / permissions | `consulter-roles` | `/administration/roles` — permissions **groupées par domaine** (le domaine se déduit du nom : `valider-conges` → congés, donc aucune table à maintenir), comparaison de deux rôles côte à côte, duplication. Lecture seule sans `modifier-roles` : aucune case cliquable, pas de case grisée décorative |
+| Audit | rôle `admin` | `/administration/audit` — lecture seule par nature, détail JSON replié hors de la table |
+| Paramètres app | rôle `admin` | `/administration/parametres` — couples clé/valeur, avec l'avertissement qui compte : renommer une clé revient à en créer une autre, et rien ne préviendra |
+
+Ces deux dernières sont les **seules portes gardées par un rôle** et non par une
+permission — les routes `/audit-logs` et `/parametres-application` portent
+`role:admin`. La note assume l'exception ; on la reproduit, corollaire compris :
+la RH, qui administre tout le reste, n'y a pas accès.
+
+### Deux garde-fous
+
+1. **La matrice est devenue un test.** Ses lignes sont transcrites avec, pour
+   chacune, les rôles qui doivent voir l'écran **et ceux qui ne doivent pas**.
+   C'est le second sens qui compte : une porte trop large ne se voit pas à
+   l'usage, elle se traduit en 403 chez l'utilisateur concerné — exactement ce
+   qui s'était produit sur la vue d'ensemble RH.
+2. **Aucune entrée de menu ne mène nulle part.** Un test résout les 65
+   destinations de la navigation contre les fichiers de `app/pages`. Un menu
+   qui pointe vers un 404 est pire qu'un menu absent : l'utilisateur croit
+   l'application cassée, et rien d'autre ne le signalerait avant la recette.
+
+### Vérifié conforme sans modification
+
+Écriture des référentiels gatée sur `creer-referentiels` / `modifier-referentiels`
+(donc fermée aux rôles de bureau, comme prescrit) ; la file disciplinaire
+retombe sur « mes rapports » pour un chef, qui n'a que `proposer-discipline` —
+pas de 403 ; la cloche reste hors du système de portes.
+
+### Contradiction à remonter au backend
+
+La matrice §2k.3 place « Grille / salaires / paie » sous `consulter-salaires`,
+que **le DG possède**. Mais le plan de test e2e P1.3 liste explicitement, pour
+le DG : « ❌ Absent : Paie (saisie) … **Salaires (détail grille)** ». Les deux
+documents se contredisent. La porte actuelle (`gerer-salaires`, que le DG n'a
+pas) suit le plan de test, le plus récent et le plus précis. À trancher.
+
+## 5 decies. Pull du 18/09 — `consulter-agents-global` — ✅ 2026-09-18
+
+Un commit (`30ae572`) qui corrige un effet de bord de la vague F : un agent du
+métier RH rattaché à un bureau se retrouvait cloisonné comme un chef, alors que
+son travail est justement transverse. Le backend ajoute la permission
+**`consulter-agents-global`** (`rh`, les cinq `rh-*`, le DG, l'admin) qui lève
+entièrement le scope — sur les agents, mais aussi les congés, absences et
+sanctions, puisque `voitPersonnelGlobal()` garde les deux scopes du trait.
+
+### Le champ qui change tout : `vue_personnel`
+
+`UserResource` expose désormais `vue_personnel` :
+`globale | direction | service | bureau`, calculé par le serveur.
+
+**C'est une correction pour nous, pas seulement un ajout.** Mon badge de
+périmètre et la page profil déduisaient le niveau des **rôles** — une méthode
+qui devient fausse : un compte peut être rattaché à un bureau **et** voir tout
+l'effectif. Ils auraient annoncé une restriction inexistante.
+
+| Écran | Avant | Après |
+|---|---|---|
+| Badge navbar | niveau déduit des rôles, affiché dès `bureau_id` | `vue_personnel` ; rien si `globale` |
+| Profil | « Bureau de rattachement » | « Périmètre de consultation » : ce qu'il **voit**, le rattachement en second |
+| Liste des comptes | colonne « bureau ou Global » | le périmètre effectif, le rattachement en sous-ligne |
+| Modale de périmètre | « ce choix produira… » | idem, **plus** un avertissement quand le compte relève du métier RH : lui poser un bureau ne le restreindra pas |
+
+`niveauCloisonnement(roles)` reste, explicitement dégradé au rang de **repli**
+pour une API qui ne renverrait pas encore le champ — et documenté comme tel.
+
+`voitPersonnelGlobal()` côté front est le miroir de la méthode serveur : il lit
+la permission dans `roles[].permissions` quand elle est développée, sinon
+retombe sur la liste de rôles que la note §2j énumère.
+
+### Et côté menus : rien
+
+La permission ne garde **aucun** écran — Personnel s'ouvre toujours sur
+`consulter-agents`. C'est un périmètre, pas une porte. Un test le fixe
+explicitement : un compte qui n'aurait que `consulter-agents-global` n'entre pas
+dans `/personnel/agents`.
+
+Le fixture de `admin` a dû changer de méthode au passage : il se construisait
+depuis les portes de module, or cette permission n'apparaît dans aucune. Il
+réunit désormais les portes de module, celles de sous-onglet **et** les
+permissions de tous les autres rôles.
+
+### État du dépôt backend
+
+`develop` local est **en retard d'un commit** et en avance d'un (ton commit
+`5532322`, non poussé). Je n'ai pas fait de `pull` : l'intégration a été lue
+depuis `origin/develop` sans toucher à ta branche.
+
+## 5 undecies. Liste Personnel non filtrée — fuite corrigée — ✅ 2026-09-18
+
+Le pull `3a2e850` est purement documentaire, mais il signale en gras un
+**breaking FE** — et nous étions dedans.
+
+### Le problème
+
+L'API expose **deux** listes d'agents qui se ressemblent :
+
+| Route | Filtrée par structure ? | Permission de route |
+|---|---|---|
+| `GET /personnel/agents` | oui (vague F) | `consulter-agents` |
+| `GET /integration/agents` | **non** | **aucune** |
+
+`useAgentsApi().list()` visait la seconde. Conséquence : le menu Personnel, les
+stagiaires et **tous les sélecteurs d'agent** de l'application renvoyaient
+l'effectif entier. Un chef de service voyait les 61 agents de l'ARTF au lieu des
+4 de son service.
+
+Ce n'était pas un 403 mais une **fuite silencieuse** : la route n'a aucune garde
+de permission côté serveur, elle répond simplement tout. Rien ne le signalait.
+
+### Le correctif
+
+`list()` pointe désormais sur `/personnel/agents`, et la variante non filtrée
+survit sous un nom qui prévient — `listeDossiers()`, réservée au wizard de
+recrutement, qui travaille par définition sur des dossiers pas encore rattachés
+à une structure. `stagiaires()` s'appuie sur `/personnel/stagiaires` : le
+filtrage en mémoire qui compensait l'absence d'endpoint dédié disparaît, avec
+l'entorse à la règle « pas de filtrage mémoire » qu'il constituait.
+
+Un **test structurel** interdit à toute page, composant ou composable de citer
+`/integration/agents` (commentaires exclus) : la confusion se refait d'un
+copier-coller, et elle ne casse rien de visible.
+
+### Ce que voit chaque chef — vérifié dans le code, pas seulement dans la doc
+
+`HasBureauScope::scopeMaStructure` élargit bien la sélection avant de filtrer :
+
+| Niveau | Dérivé de | Population vue |
+|---|---|---|
+| `bureau` | `chef-bureau`, `agent` | son bureau **seul** |
+| `service` | `chef-service` | **tous les bureaux** de son service + les agents rattachés au service |
+| `direction` | `directeur`, DG | **tous les services et bureaux** de sa direction + les agents rattachés à la direction |
+
+Un chef de service voit donc bien l'intégralité de son service, bureaux
+compris. L'« exception pour certains bureaux clés » est la permission
+`consulter-agents-global` : tout le métier RH (`rh` et les cinq `rh-*`) la
+porte, ainsi que le DG et l'admin — ils voient tout l'effectif quel que soit
+leur rattachement.
+
+Deux limites du modèle, à connaître : un agent rattaché **directement au
+service** échappe au chef de bureau (il n'est dans aucun bureau), et un agent
+rattaché **directement à la direction** échappe au chef de service. C'est
+cohérent, mais cela suppose que les affectations soient posées au bon niveau.
+
 ## 6. Décisions à trancher
 
 | # | Sujet | Proposition |
 |---|---|---|
 | F1 | Chemin front du module évaluation | `/evaluations/…` (libellé « Évaluations »), le préfixe API `/avancements` reste dans les repos |
 | F2 ✅ | Où vit la file des reclassements | **tranché** : `/carriere/reclassements`, gate Carrière élargi à `consulter-salaires` + `navGates` (le DG n'y voit que Reclassements et Positions) |
-| F3 ✅ | Module Rémunération ouvert au DG (nouvelle permission) | **tranché** : Grille / Salaires / Paie gatés sur `anyRole: ["rh","admin"]` ; le DG passe par Carrière > Reclassements et Positions |
+| F3 ✅ | Module Rémunération ouvert au DG (nouvelle permission) | **tranché, révisé le 18/09** : gate `anyPermission: ["gerer-salaires"]` (et non plus un test de rôle, qui excluait le bureau Solde de la vague F) ; le DG, qui n'a que `consulter-salaires`, passe toujours par Carrière > Reclassements et Positions |
 | F4 | Grille de critères | onglet du module Évaluations (pas dans Administration > Référentiels) : c'est un paramétrage métier RH |
 | F5 | Ordre des lots 2 / 3 vs corrections backend | lancer le lot 2 maintenant, conditionner le lot 3 à B1–B5 |

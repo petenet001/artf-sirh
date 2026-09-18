@@ -47,6 +47,29 @@ async function telechargerActe() {
   }
 }
 
+/**
+ * ZIP des notes de service individuelles du lot.
+ *
+ * L'acte PDF au-dessus est le document **collectif** ; celui-ci rend une note
+ * par agent, à remettre en main propre. Les deux coexistent parce qu'ils ne
+ * s'adressent pas aux mêmes destinataires.
+ */
+async function telechargerNotesService() {
+  const ids = (lot.value?.affectations ?? []).map((a) => a.id);
+  if (!ids.length) return;
+  busy.value = true;
+  try {
+    downloadBlob(
+      await affectationsApi.notesServiceLot(ids),
+      `notes-service-lot-${id.value}.zip`,
+    );
+  } catch (err) {
+    handleError(err);
+  } finally {
+    busy.value = false;
+  }
+}
+
 const peutRejeter = computed(() => ["en_attente_validation", "approuvee"].includes(statut.value));
 </script>
 
@@ -74,6 +97,17 @@ const peutRejeter = computed(() => ["en_attente_validation", "approuvee"].includ
             <UButton v-if="statut === 'approuvee'" icon="i-lucide-play" :loading="busy" @click="activer">Activer le lot</UButton>
             <UButton v-if="peutRejeter" icon="i-lucide-x" color="error" variant="soft" :loading="busy" @click="rejeter">Rejeter</UButton>
             <UButton icon="i-lucide-file-down" color="neutral" variant="ghost" :loading="busy" @click="telechargerActe">Acte PDF</UButton>
+            <UButton
+              v-if="(lot.affectations?.length ?? 0) > 0"
+              icon="i-lucide-folder-archive"
+              color="neutral"
+              variant="ghost"
+              :loading="busy"
+              title="Une note de service par agent, dans une archive ZIP"
+              @click="telechargerNotesService"
+            >
+              Notes de service (ZIP)
+            </UButton>
           </div>
         </div>
 

@@ -103,5 +103,11 @@ export function useSanctionsApi() {
     mesAvertissements: () => api<ApiCollection<import("~/schemas/avertissement").Avertissement>>(
       "/discipline/moi/avertissements",
     ),
+
+    /** Détail d'un de mes avertissements. Même garde : seul l'intéressé y accède. */
+    monAvertissement: (id: number) =>
+      api<ApiResponse<import("~/schemas/avertissement").Avertissement>>(
+        `/discipline/moi/avertissements/${id}`,
+      ),
   };
 }
