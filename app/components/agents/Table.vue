@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends AgentSummary">
 import type { TableColumn } from "@nuxt/ui";
 import { agentColumns } from "~/constants/columns/agents";
 import type { AgentSummary } from "~/schemas/agent-summary";
@@ -11,10 +11,29 @@ import type { AgentSummary } from "~/schemas/agent-summary";
  *
  * Typée sur `AgentSummary` (socle scalaire) : accepte aussi bien les agents
  * complets que les agents imbriqués dans une affectation.
+ *
+ * Générique sur `T extends AgentSummary` — comme `BaseTable` : une page qui
+ * dispose de la fiche complète (avec `affectation_active`) peut s'en servir
+ * dans ses rendus sans recourir à un cast.
+ *
+ * `structureDe` ajoute une colonne « Structure ». Elle est optionnelle et
+ * passée par l'appelant plutôt que résolue ici : la filiation demande
+ * l'organigramme, que toutes les pages n'ont pas besoin de charger — et « Mon
+ * entité », qui ne liste qu'une seule structure, n'a rien à y gagner.
  */
-defineProps<{ agents: AgentSummary[] }>();
+const props = defineProps<{
+  agents: T[];
+  /** Libellé d'affectation d'un agent. Absent = pas de colonne. */
+  structureDe?: (agent: T) => string;
+}>();
 
-const columns: TableColumn<AgentSummary>[] = [...agentColumns, { id: "actions", header: "" }];
+const columns = computed<TableColumn<T>[]>(() => [
+  ...agentColumns<T>(),
+  // Insérée juste après l'identité : c'est la première question qu'on se pose
+  // en parcourant une liste d'agents qu'on ne connaît pas tous.
+  ...(props.structureDe ? [{ id: "structure", header: "Structure" }] : []),
+  { id: "actions", header: "" },
+]);
 </script>
 
 <template>
@@ -38,6 +57,10 @@ const columns: TableColumn<AgentSummary>[] = [...agentColumns, { id: "actions", 
         :subtitle="row!.original.matricule ?? 'Matricule non assigné'"
         :src="row!.original.photo_path"
       />
+    </template>
+
+    <template v-if="structureDe" #structure-cell="{ row }">
+      <span class="text-sm text-muted">{{ structureDe(row!.original) }}</span>
     </template>
 
     <template #statut-cell="{ row }">

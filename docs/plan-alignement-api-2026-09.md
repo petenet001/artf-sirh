@@ -830,6 +830,74 @@ service** échappe au chef de bureau (il n'est dans aucun bureau), et un agent
 rattaché **directement à la direction** échappe au chef de service. C'est
 cohérent, mais cela suppose que les affectations soient posées au bon niveau.
 
+## 5 duodecies. Filtres de structure sur la liste Personnel — ✅ 2026-09-18
+
+Un chef du bureau Personnel a le droit de voir tout l'effectif
+(`consulter-agents-global`) — et c'est justement le problème : il ne retrouve
+plus ses propres agents dans une liste de soixante et un. L'API ne sait pas
+l'aider : `GET /personnel/agents` n'accepte que `nom`, `prenom`, `matricule`,
+`statut`, `genre`, `type_integration_id`.
+
+### Le modèle retenu : pyramidal, pas binaire
+
+Un premier essai proposait une bascule « mon périmètre / tout l'ARTF ». Elle ne
+servait qu'aux comptes en vue globale, alors que le besoin est hiérarchique :
+
+| Qui | Voit | Peut affiner par |
+|---|---|---|
+| chef de bureau | son bureau | rien — il est au bout |
+| chef de service | son service, **tous bureaux confondus** | bureau |
+| directeur | sa direction entière | service, puis bureau |
+| métier RH, DG | tout l'ARTF | direction, service, bureau |
+
+Le composant expose donc une **racine** (le périmètre de la personne, `null` en
+vue globale) et les niveaux strictement en dessous. Un niveau vide fait
+disparaître son contrôle : le cas du chef de bureau se règle tout seul, sans
+condition écrite pour lui. Les filtres se placent à côté de « Statut », le
+design de l'écran ne bouge pas.
+
+S'y ajoute une colonne **Structure** qui écrit la chaîne entière
+(« D.R.H.L · S.R.H · B.P ») : « B.P » seul ne parle qu'à qui connaît déjà
+l'organigramme, or c'est exactement la personne qui n'a pas besoin de la colonne.
+
+### Quatre précautions
+
+1. **« Affichage », jamais « accès ».** Ces filtres rangent, ils ne protègent
+   rien — le cloisonnement reste serveur. La mention sous la table parle
+   d'agents « masqués par ce filtre d'affichage », pas d'agents interdits.
+2. **Changer de niveau réinitialise ceux du dessous.** Garder « B.P » après être
+   passé sur une autre direction donnerait une liste vide inexplicable.
+3. **Rien n'est affirmé à tort.** Référentiel non chargé → « … » et non « Non
+   affecté » : l'agent *est* affecté, c'est nous qui ne savons pas encore où. Et
+   un périmètre qu'on ne peut pas remonter faute de filiation rend `null` plutôt
+   qu'une cible approximative.
+4. **Le filtre n'élargit jamais.** Il affine ce que le serveur a déjà envoyé.
+
+La logique vit dans `utils/structures.ts`, pure, et reproduit **exactement**
+`HasBureauScope::scopeMaStructure` — 64 tests sur un organigramme de deux
+directions, dont les cas qui se trompent facilement : le bureau voisin, l'agent
+rattaché au service parent, le service d'une autre direction.
+
+### Ce que ça a coûté au passage
+
+`AgentsTable` devient générique sur `T extends AgentSummary` (comme
+`BaseTable`), et `agentColumns` passe de constante à fabrique générique :
+`TableColumn<AgentSummary>` ne s'assigne pas à `TableColumn<T>`, les accesseurs
+étant contravariants. Un `as` aurait masqué le problème ; la fabrique le règle.
+
+### Et la vraie solution, côté backend
+
+Le tri en mémoire est une étape, pas une destination : il suppose trois
+référentiels chargés à chaque ouverture et ne survivra pas à une liste paginée.
+La demande est écrite dans
+[`besoin-api-tableau-de-bord.md`](./besoin-api-tableau-de-bord.md) §5 —
+whitelister `direction_id` / `service_id` / `bureau_id` sur `/personnel/agents`,
+avec le précédent de `/reporting/effectifs` qui les accepte déjà, et l'ordre
+impératif : **scope d'abord, filtre ensuite**.
+
+**L'interface ne bougera pas** quand ce sera livré : seul le contenu de
+`filtrer()` descendra côté serveur.
+
 ## 6. Décisions à trancher
 
 | # | Sujet | Proposition |

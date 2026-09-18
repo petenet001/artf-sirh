@@ -134,6 +134,50 @@ permissions.
 | `discipline` | `consulter-discipline` |
 | `integration` | `consulter-recrutement` |
 
+### 5. Filtrer la liste Personnel par structure
+
+**Besoin :** un compte du métier RH porte `consulter-agents-global` — le serveur
+lui renvoie **tout l'effectif**, et `GET /personnel/agents` n'accepte aucun
+filtre de structure. Il n'a donc aucun moyen de demander « seulement mon
+service », alors que c'est sa vue de travail quotidienne.
+
+Le front range aujourd'hui la liste **en mémoire**, en reconstruisant
+l'organigramme depuis `/bureaux` et `/services`. Ça fonctionne, mais :
+
+- ça suppose de charger deux référentiels à chaque ouverture de l'écran ;
+- ça ne survivra pas à une liste paginée ;
+- et un filtre de structure a sa place à côté de `statut` et
+  `type_integration_id`, pas dans le navigateur.
+
+**Demande :** whitelister trois filtres sur `GET /personnel/agents` (et
+`/personnel/stagiaires`) :
+
+```
+GET /personnel/agents?direction_id=3
+GET /personnel/agents?service_id=10
+GET /personnel/agents?bureau_id=100
+```
+
+Sémantique attendue — celle de `HasBureauScope::scopeMaStructure`, appliquée à
+une structure **explicite** au lieu de celle de l'utilisateur :
+
+| Filtre | Population |
+|---|---|
+| `bureau_id` | agents affectés à ce bureau |
+| `service_id` | agents du service **et de tous ses bureaux** |
+| `direction_id` | agents de la direction, de ses services et de leurs bureaux |
+
+Le précédent existe : `GET /reporting/effectifs` accepte déjà exactement ces
+trois paramètres (`Reporting\FilterRequest`).
+
+> ⚠️ **Ce filtre ne remplace pas le cloisonnement** : il s'y ajoute. Un
+> utilisateur cloisonné qui demanderait une structure hors de son périmètre doit
+> recevoir une liste vide, jamais des agents qu'il n'a pas le droit de voir.
+> L'ordre est donc : scope d'abord, filtre ensuite.
+
+**Confort, pas sécurité.** Côté front, le sélecteur s'intitule « Affichage » et
+non « Accès » : personne ne doit croire que le décocher protège quoi que ce soit.
+
 ## Conventions (rappel)
 
 1. **Maps vides = `{}`**, jamais `[]` — le piège existe déjà sur

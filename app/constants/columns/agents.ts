@@ -7,13 +7,21 @@ import type { AgentSummary } from "~/schemas/agent-summary";
  * statut (pastille, rendu par `#statut-cell`). Ces deux cellules sont fournies
  * par `AgentsTable`. Définies séparément par population.
  *
- * ⚠️ L'`index` de l'API ne renvoie pas les relations (grade, fonction…) : on ne
- * liste donc que des champs plats.
+ * ⚠️ On ne liste que des champs **plats**. `GET /personnel/agents` charge bien
+ * quelques relations (`affectation_active`, `grade`…), mais les afficher
+ * demande de résoudre l'organigramme : c'est le rôle de la colonne optionnelle
+ * « Structure », que `AgentsTable` ajoute quand l'appelant la fournit.
+ *
+ * Fabrique générique plutôt que constante : la table est générique sur
+ * `T extends AgentSummary`, et `TableColumn<AgentSummary>` ne s'assigne pas à
+ * `TableColumn<T>` (les accesseurs sont contravariants).
  */
-export const agentColumns: TableColumn<AgentSummary>[] = [
-  { accessorKey: "nom", header: sortableHeader("Agent") },
-  { accessorKey: "matricule", header: sortableHeader("Matricule") },
-  { accessorKey: "telephone", header: "Téléphone" },
-  { accessorKey: "genre", header: "Genre" },
-  { accessorKey: "statut", header: sortableHeader("Statut") },
-];
+export function agentColumns<T extends AgentSummary>(): TableColumn<T>[] {
+  return [
+    { accessorKey: "nom", header: sortableHeader("Agent") },
+    { accessorKey: "matricule", header: sortableHeader("Matricule") },
+    { accessorKey: "telephone", header: "Téléphone" },
+    { accessorKey: "genre", header: "Genre" },
+    { accessorKey: "statut", header: sortableHeader("Statut") },
+  ];
+}
