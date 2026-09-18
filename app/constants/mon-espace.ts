@@ -93,3 +93,94 @@ export function cartesVisibles(ctx: {
     (c) => (!c.exigeAgent || ctx.estAgent) && (!c.permission || ctx.can(c.permission)),
   );
 }
+
+// ── Pastilles d'attention ────────────────────────────────────────────────────
+
+/**
+ * Deux natures de signal, et il ne faut surtout pas les confondre :
+ *
+ * - **`action`** — quelque chose est bloqué **sur vous** : une fiche à signer,
+ *   un dossier incomplet. C'est vous qui tenez la file.
+ * - **`info`** — il s'est passé quelque chose que vous n'avez pas encore lu.
+ *   Aucune action attendue.
+ *
+ * Les peindre pareil rendrait le premier invisible : au bout d'une semaine,
+ * l'utilisateur ne regarde plus une pastille qui ne veut jamais rien dire.
+ */
+export type TonAlerte = "action" | "info";
+
+export interface AlerteCarte {
+  ton: TonAlerte;
+  /** Ce que la pastille affiche. `0` = pastille sans chiffre. */
+  compte: number;
+  /** Phrase d'infobulle : ce qu'il faut comprendre, pas le nom du signal. */
+  libelle: string;
+}
+
+/**
+ * Domaines de notification rattachés à chaque carte (cf. `constants/notifications`).
+ * Une carte sans entrée ne porte jamais de pastille « info ».
+ */
+export const DOMAINES_PAR_CARTE: Record<string, string[]> = {
+  profil: ["compte"],
+  carriere: ["affectation", "nomination", "lot_affectation", "lot_nomination", "prise_de_service", "stage"],
+  conges: ["conge"],
+  absences: ["absence"],
+  evaluations: ["evaluation"],
+  discipline: ["discipline"],
+  dossier: ["integration"],
+};
+
+export interface SignauxMonEspace {
+  /** Notifications **non lues**, par domaine. */
+  nonLuesParDomaine: Record<string, number>;
+  /** Fiches d'évaluation attendant la signature de l'agent. */
+  fichesASigner: number;
+  /** Sections manquantes du dossier (libellés prêts à afficher). */
+  sectionsManquantes: string[];
+}
+
+/**
+ * Pastille de chaque carte, à partir des signaux collectés.
+ *
+ * Une carte ne porte **qu'une** pastille : deux se disputeraient le même coup
+ * d'œil. En cas de concurrence, l'action l'emporte sur l'information — ce qui
+ * vous attend passe avant ce qui s'est passé.
+ */
+export function alertesParCarte(signaux: SignauxMonEspace): Record<string, AlerteCarte> {
+  const alertes: Record<string, AlerteCarte> = {};
+
+  // 1. Informations : ce qui est arrivé et n'a pas été lu.
+  for (const [carte, domaines] of Object.entries(DOMAINES_PAR_CARTE)) {
+    const total = domaines.reduce((somme, d) => somme + (signaux.nonLuesParDomaine[d] ?? 0), 0);
+    if (total > 0) {
+      alertes[carte] = {
+        ton: "info",
+        compte: total,
+        libelle: `${total} notification${total > 1 ? "s" : ""} non lue${total > 1 ? "s" : ""}`,
+      };
+    }
+  }
+
+  // 2. Actions : elles écrasent l'information si elles portent sur la même carte.
+  if (signaux.fichesASigner > 0) {
+    const n = signaux.fichesASigner;
+    alertes.evaluations = {
+      ton: "action",
+      compte: n,
+      libelle: `${n} fiche${n > 1 ? "s" : ""} attend${n > 1 ? "ent" : ""} votre signature`,
+    };
+  }
+
+  if (signaux.sectionsManquantes.length) {
+    alertes.dossier = {
+      ton: "action",
+      // Pas de chiffre : « 2 » sur un dossier se lirait comme deux documents
+      // reçus, pas comme deux rubriques à remplir.
+      compte: 0,
+      libelle: `À compléter : ${signaux.sectionsManquantes.join(", ")}.`,
+    };
+  }
+
+  return alertes;
+}
