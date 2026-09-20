@@ -5,19 +5,23 @@ import { STATUT_AGENT_OPTIONS, type StatutAgent } from "~/constants/personnel";
  * Liste des agents. La création se fait sur sa propre page (formulaire long à
  * 3 sections, cf. maquette) : pas de modale ici.
  *
- * Aux côtés du statut, des filtres de **structure** qui suivent la hiérarchie :
- * un chef de service peut descendre bureau par bureau, un directeur service
- * puis bureau, la RH parcourt l'ARTF entière. Un chef de bureau n'a rien en
- * dessous de lui : aucun contrôle ne lui est proposé.
+ * Aux côtés du statut, une **cascade de structure** qui suit la hiérarchie :
+ * choisir une direction charge ses services, choisir un service charge ses
+ * bureaux. Chacun ne se voit proposer que les niveaux situés sous son propre
+ * périmètre — un chef de bureau n'a donc aucun de ces contrôles.
  */
 const { agents, pending, error, filters } = useAgents();
 const {
-  options,
-  directionId,
-  serviceId,
-  bureauId,
-  parcourable,
+  optionsDirections,
+  optionsServices,
+  optionsBureaux,
+  choixDirection,
+  choixService,
+  choixBureau,
   affine,
+  chargement,
+  maStructurePossible,
+  allerAMaStructure,
   reinitialiser,
   filtrer,
   structureDe,
@@ -25,8 +29,6 @@ const {
 
 // L'API filtre par égalité exacte : on lie le statut directement. `archive`
 // n'apparaît que filtré explicitement (hors liste par défaut côté API).
-const statutItems = STATUT_AGENT_OPTIONS;
-
 const statut = computed<StatutAgent | undefined>({
   get: () => filters.statut as StatutAgent | undefined,
   set: (v) => {
@@ -34,19 +36,14 @@ const statut = computed<StatutAgent | undefined>({
   },
 });
 
-/** Liste réellement affichée : les filtres de structure s'appliquent après l'API. */
+/** Liste réellement affichée : la cascade s'applique après l'API. */
 const lignes = computed(() => filtrer(agents.value));
 
-/** Options d'un niveau, précédées de son « tous ». */
-function avecTous(
-  structures: { id: number; nom: string; sigle?: string | null }[],
-  tous: string,
-) {
-  return [
-    { label: tous, value: undefined },
-    ...structures.map((s) => ({ label: s.sigle ? `${s.sigle} — ${s.nom}` : s.nom, value: s.id })),
-  ];
-}
+/** Un niveau n'est proposé que s'il contient autre chose que son « tous ». */
+const aDesDirections = computed(() => optionsDirections.value.length > 1);
+const aDesServices = computed(() => optionsServices.value.length > 1);
+const aDesBureaux = computed(() => optionsBureaux.value.length > 1);
+const aUneCascade = computed(() => aDesDirections.value || aDesServices.value || aDesBureaux.value);
 
 /** Combien la sélection écarte, pour que le filtre se comprenne sans essayer. */
 const masques = computed(() => agents.value.length - lignes.value.length);
@@ -57,37 +54,61 @@ const masques = computed(() => agents.value.length - lignes.value.length);
     <BaseDataState :pending="pending" :error="error">
       <AgentsTable :agents="lignes" :structure-de="(a) => structureDe(a.affectation_active)">
         <template #filters>
-          <USelect v-model="statut" :items="statutItems" placeholder="Statut" class="w-40" />
+          <USelect
+            v-model="statut"
+            :items="STATUT_AGENT_OPTIONS"
+            placeholder="Statut"
+            class="w-36"
+          />
 
           <!--
-            Les niveaux offerts sont ceux **sous** le périmètre de la personne :
-            la liste vide d'un niveau le fait disparaître, sans condition écrite
-            pour chaque fonction. Un chef de bureau ne voit donc rien ici.
+            Les trois niveaux sur une seule ligne, joints : ils forment un seul
+            filtre « où ? » qu'on lit de gauche à droite, du plus large au plus
+            fin. Un niveau vide ne s'affiche pas — c'est ce qui fait qu'un chef
+            de bureau ne voit rien ici, sans condition écrite pour lui.
           -->
-          <USelect
-            v-if="options.directions.length"
-            v-model="directionId"
-            :items="avecTous(options.directions, 'Toutes les directions')"
-            value-key="value"
-            icon="i-lucide-building-2"
-            class="w-52"
-          />
-          <USelect
-            v-if="options.services.length"
-            v-model="serviceId"
-            :items="avecTous(options.services, 'Tous les services')"
-            value-key="value"
-            icon="i-lucide-network"
-            class="w-52"
-          />
-          <USelect
-            v-if="options.bureaux.length"
-            v-model="bureauId"
-            :items="avecTous(options.bureaux, 'Tous les bureaux')"
-            value-key="value"
-            icon="i-lucide-door-open"
-            class="w-52"
-          />
+          <UFieldGroup v-if="aUneCascade">
+            <USelect
+              v-if="aDesDirections"
+              v-model="choixDirection"
+              :items="optionsDirections"
+              value-key="value"
+              icon="i-lucide-building-2"
+              :loading="chargement"
+              class="w-48"
+            />
+            <USelect
+              v-if="aDesServices"
+              v-model="choixService"
+              :items="optionsServices"
+              value-key="value"
+              icon="i-lucide-network"
+              :loading="chargement"
+              class="w-48"
+            />
+            <USelect
+              v-if="aDesBureaux"
+              v-model="choixBureau"
+              :items="optionsBureaux"
+              value-key="value"
+              icon="i-lucide-door-open"
+              :loading="chargement"
+              class="w-48"
+            />
+          </UFieldGroup>
+
+          <!-- Raccourci du chef qui voit plus large que son équipe. -->
+          <UButton
+            v-if="maStructurePossible"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-scan-eye"
+            :loading="chargement"
+            title="Cadrer sur la structure à laquelle vous êtes rattaché"
+            @click="allerAMaStructure"
+          >
+            Ma structure
+          </UButton>
 
           <UButton
             v-if="affine"
@@ -107,7 +128,7 @@ const masques = computed(() => agents.value.length - lignes.value.length);
         protègent rien. Le cloisonnement reste serveur — le formuler autrement
         laisserait croire qu'élargir donnerait accès à davantage.
       -->
-      <p v-if="parcourable && affine && masques > 0" class="mt-3 text-xs text-muted">
+      <p v-if="affine && masques > 0" class="mt-3 text-xs text-muted">
         {{ masques }} agent{{ masques > 1 ? "s" : "" }} de votre périmètre
         {{ masques > 1 ? "sont masqués" : "est masqué" }} par ce filtre d'affichage.
       </p>

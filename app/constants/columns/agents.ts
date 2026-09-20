@@ -19,7 +19,9 @@ import type { AgentSummary } from "~/schemas/agent-summary";
 export function agentColumns<T extends AgentSummary>(): TableColumn<T>[] {
   return [
     { accessorKey: "nom", header: sortableHeader("Agent") },
-    { accessorKey: "matricule", header: sortableHeader("Matricule") },
+    // Pas de colonne « Matricule » : `BasePersonCell` l'écrit déjà sous le nom.
+    // La répéter volait une colonne pour redire la même chose — la recherche
+    // continue de porter dessus, et le tri par nom suffit à s'y retrouver.
     { accessorKey: "telephone", header: "Téléphone" },
     { accessorKey: "genre", header: "Genre" },
     { accessorKey: "statut", header: sortableHeader("Statut") },

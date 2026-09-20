@@ -141,10 +141,21 @@ lui renvoie **tout l'effectif**, et `GET /personnel/agents` n'accepte aucun
 filtre de structure. Il n'a donc aucun moyen de demander « seulement mon
 service », alors que c'est sa vue de travail quotidienne.
 
-Le front range aujourd'hui la liste **en mémoire**, en reconstruisant
-l'organigramme depuis `/bureaux` et `/services`. Ça fonctionne, mais :
+**Un blocage préalable, et il est à une ligne de vous.**
+`GET /directions`, `/services` et `/bureaux` renvoient
+`StructureOrganisationnelleListResource`, soit `{ id, nom, sigle }` :
+**ni `service_id`, ni `direction_id`**. Impossible donc de reconstruire
+l'organigramme depuis les listes. Le front descend actuellement par les
+sous-routes `/directions/{id}/services` et `/services/{id}/bureaux`, qui
+donnent la filiation par construction — mais au prix d'un appel par branche
+ouverte.
 
-- ça suppose de charger deux référentiels à chaque ouverture de l'écran ;
+Ajouter les deux clés à cette ressource (elles existent déjà dans
+`BureauResource` et `ServiceResource`, sous condition `whenLoaded`) rendrait
+l'arbre disponible en trois appels. C'est additif, donc non cassant.
+
+Le front range ensuite la liste **en mémoire**. Ça fonctionne, mais :
+
 - ça ne survivra pas à une liste paginée ;
 - et un filtre de structure a sa place à côté de `statut` et
   `type_integration_id`, pas dans le navigateur.

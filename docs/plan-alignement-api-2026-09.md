@@ -856,6 +856,95 @@ disparaître son contrôle : le cas du chef de bureau se règle tout seul, sans
 condition écrite pour lui. Les filtres se placent à côté de « Statut », le
 design de l'écran ne bouge pas.
 
+### Ce que la capture d'écran a montré
+
+Une capture du rendu réel a révélé quatre défauts, dont deux que la lecture du
+code seule n'aurait pas donnés :
+
+1. **Les sélecteurs sortaient vides.** `USelect` passe la valeur telle quelle à
+   `SelectItem`, qui exige une valeur définie : l'option « Toutes les
+   directions » portait `undefined` et n'était ni affichée ni sélectionnable.
+   Remplacée par une **sentinelle** (`0`, qu'aucune structure ne porte),
+   retraduite en « pas de filtre » dans le composable.
+2. **Le quatrième filtre tombait sur une deuxième ligne.** Les trois niveaux
+   sont désormais joints dans un `UFieldGroup` : ils forment un seul filtre
+   « où ? », lu de gauche à droite du plus large au plus fin.
+3. **La colonne Structure n'affichait qu'un sigle isolé.** Cause :
+   `/directions`, `/services` et `/bureaux` renvoient
+   `StructureOrganisationnelleListResource` — `{ id, nom, sigle }`, **sans
+   `service_id` ni `direction_id`**. Reconstruire l'arbre depuis les listes
+   était donc impossible ; d'où la refonte en cascade (ci-dessous).
+4. **Les en-têtes des colonnes triables étaient vides.** `sortableHeader`
+   utilisait `resolveComponent("UButton")`, or TanStack rend les en-têtes
+   depuis son propre contexte : l'instance de rendu Vue est nulle,
+   `resolveComponent` échoue **silencieusement** et renvoie la chaîne
+   « UButton », que le navigateur ignore. Remplacé par un import depuis
+   `#components`. Bug antérieur, qui touchait six écrans.
+
+Le matricule, écrit à la fois sous le nom et dans sa propre colonne, a perdu
+cette colonne : elle volait une place pour redire la même chose.
+
+### Le défaut de conception que la question a révélé
+
+« Pourquoi les autres directeurs et chefs ne voient-ils pas leurs agents ? » —
+parce que le front **re-filtrait leur propre périmètre**.
+
+`perimetreActif` retombait sur la racine quand rien n'était choisi, et la racine
+se déduisait du rattachement de l'utilisateur. Or au premier rendu la filiation
+n'est pas chargée : la remontée échouait et rendait le niveau le plus
+restrictif. **Un directeur ne voyait que son bureau** alors que le serveur lui
+avait envoyé toute sa direction.
+
+La règle est désormais explicite, dans le code et dans un test : le serveur a
+**déjà** cadré (vague F), le filtre client ne vaut que pour une **descente
+choisie**. Sans sélection, aucun filtre. Y revenir ne pouvait que retrancher à
+tort.
+
+La profondeur offerte, elle, vient bien de la fonction — mais elle décide de ce
+qu'on **propose**, jamais de ce qu'on retranche :
+
+| Fonction | Reçoit du serveur | Peut descendre par |
+|---|---|---|
+| chef de bureau | son bureau | rien — il est au bout |
+| chef de service | son service, tous bureaux confondus | bureau |
+| directeur | sa direction entière | service, puis bureau |
+| métier RH, DG | tout l'ARTF | direction, service, bureau |
+
+Un directeur n'a pas à choisir sa direction : il n'en a qu'une, et le serveur ne
+lui en enverra jamais d'autre. Son premier sélecteur est donc « Service ».
+
+### La cascade
+
+Puisque les listes plates ne portent pas la filiation, on descend par les
+sous-routes qui la donnent **par construction** — on sait de qui dépendent les
+enfants puisqu'on les a demandés au parent :
+
+- se situer coûte **un seul appel** : `GET /bureaux/{id}` charge
+  `service.direction.administration`, donc toute la chaîne de l'utilisateur ;
+- choisir une direction charge `/directions/{id}/services` ;
+- choisir un service charge `/services/{id}/bureaux` ;
+- et les bureaux de toutes les branches ouvertes sont chargés en parallèle, sans
+  quoi un filtre de direction laisserait échapper les agents de ses bureaux.
+
+Deux sources distinctes, qui ne se chargent pas au même moment : les trois
+listes plates pour **nommer** (la colonne Structure fonctionne dès le
+chargement), les sous-routes pour **situer** (les parents s'ajoutent au fil de
+la descente). L'un n'attend pas l'autre.
+
+Une branche non chargée **exclut** l'agent plutôt que de l'inclure à tort :
+mieux vaut une liste visiblement courte, que l'utilisateur corrige en remontant
+d'un niveau, qu'une liste qui prétend filtrer sans le faire.
+
+S'ajoute un bouton **« Ma structure »** pour le chef qui voit plus large que son
+équipe (métier RH) : il descend l'arbre jusqu'à trouver son bureau et cadre
+dessus. Il ne s'affiche que pour un compte rattaché **et** en vue globale —
+ailleurs, il ne ferait rien de visible.
+
+L'option « tous les… » porte une **valeur sentinelle** (`0`) et non `undefined` :
+`USelect` passe la valeur telle quelle à `SelectItem`, qui exige une valeur
+définie. Sans elle, l'option aurait été rendue mais jamais sélectionnable — on
+serait descendu dans un bureau sans pouvoir remonter.
+
 S'y ajoute une colonne **Structure** qui écrit la chaîne entière
 (« D.R.H.L · S.R.H · B.P ») : « B.P » seul ne parle qu'à qui connaît déjà
 l'organigramme, or c'est exactement la personne qui n'a pas besoin de la colonne.

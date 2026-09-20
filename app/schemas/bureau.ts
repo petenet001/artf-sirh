@@ -8,7 +8,15 @@ export const bureauSchema = z.object({
   sigle: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   service_id: z.number().nullable().optional(),
-  service: structureRefSchema.optional(),
+  /**
+   * Sur le `show`, l'API charge `service.direction.administration` : un seul
+   * appel donne donc toute la chaîne d'un bureau. On descend d'un niveau de
+   * plus que `structureRefSchema` pour l'exposer — sans aller jusqu'à la
+   * récursion que ce schéma sert justement à éviter.
+   */
+  service: structureRefSchema
+    .extend({ direction: structureRefSchema.optional() })
+    .optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
