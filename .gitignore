@@ -20,3 +20,7 @@ logs
 .DS_Store
 .idea
 *.local
+
+# Déploiement (archive d’image Docker, journal de build)
+*.tar.gz
+build.log

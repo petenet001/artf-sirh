@@ -1,12 +1,16 @@
 services:
   frontend:
-    build: .
+    # Image buildée sur le poste de dev puis chargée sur le serveur (cf. deploy.sh) :
+    # le serveur (1,9 Go de RAM) ne peut pas builder lui-même.
+    image: artf-sirh-frontend:latest
     container_name: rh-artf-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       NUXT_PUBLIC_API_BASE: http://172.20.16.35:8081/api
+      # Servi en HTTP simple : un cookie `secure` serait rejeté par le navigateur.
+      NUXT_PUBLIC_COOKIE_SECURE: "false"
     networks:
       - rh-artf
 

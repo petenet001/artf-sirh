@@ -52,6 +52,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: "http://artfrh.sc1difl4205.universe.wf/api",
+      // Attribut `secure` du cookie `auth.token` (`NUXT_PUBLIC_COOKIE_SECURE`).
+      // `false` par défaut : le déploiement interne est servi en HTTP simple,
+      // où un cookie `secure` est refusé par le navigateur. `true` sous HTTPS.
+      cookieSecure: false,
     },
   },
 
