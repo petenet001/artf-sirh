@@ -1,4 +1,6 @@
 import { canAccessPath, landingRoute } from "~/constants/modules";
+import { porteesSession } from "~/constants/entite";
+import { nomsRoles } from "~/constants/utilisateurs";
 
 /**
  * Garde globale : authentification + **contrôle d'accès par module**.
@@ -20,9 +22,13 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (!token.value) return isPublic ? undefined : navigateTo("/login");
 
   const auth = useAuthStore();
+  // Même contexte que le menu (`useModules`), portées comprises : sans elles,
+  // un onglet visible comme « Mon entité » renverrait à l'accueil au clic.
+  const portees = porteesSession(auth.user ? nomsRoles(auth.user) : []);
   const ctx = {
     can: (p: string) => auth.can(p),
     hasRole: (r: string) => auth.hasRole(r),
+    hasScope: (s: string) => portees.includes(s),
   };
   const landing = landingRoute(ctx);
 

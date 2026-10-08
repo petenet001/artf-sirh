@@ -1,21 +1,23 @@
-import { ENTITE_LABEL, estPosteResponsable, estStructurable, type StructurableType } from "~/constants/entite";
+import { ENTITE_LABEL, niveauEntite, resoudreEntite, type ResolutionEntite } from "~/constants/entite";
+import { nomsRoles } from "~/constants/utilisateurs";
 
 /**
  * Qui suis-je dans l'organisation ? Résout, pour l'utilisateur connecté :
- * - sa **fiche agent** (`user.agent_id`) ;
- * - son **poste** (`nomination_active.poste`) — c'est lui qui dit si l'on
- *   dirige une structure (cf. `constants/entite.ts`) ;
- * - son **entité** (`affectation_active.structurable_type` + `_id`).
+ * - son **niveau** de responsable, d'après ses rôles (cf. `constants/entite.ts`) ;
+ * - sa **fiche agent** (`user.agent_id`), pour l'affectation et le poste ;
+ * - son **entité** : l'ARTF pour le DG, sinon la structure de son affectation
+ *   active, à condition qu'elle soit au niveau de son rôle.
  *
- * Sert de source à la portée `"entite"` des sous-onglets (`useModules`) et à
- * l'aperçu `useEntiteApercu`. Un utilisateur sans fiche agent (compte purement
- * applicatif) n'a simplement pas d'entité.
+ * La fiche n'est chargée que pour un responsable : les autres comptes n'ont
+ * rien à en tirer ici.
  */
 export function useMonEntite() {
   const auth = useAuthStore();
   const agentsApi = useAgentsApi();
 
-  const agentId = computed(() => auth.user?.agent_id ?? null);
+  const roles = computed(() => (auth.user ? nomsRoles(auth.user) : []));
+  const niveau = computed(() => niveauEntite(roles.value));
+  const agentId = computed(() => (niveau.value ? (auth.user?.agent_id ?? null) : null));
 
   const { data, pending, error } = useAsyncData(
     "mon-agent",
@@ -24,19 +26,26 @@ export function useMonEntite() {
   );
 
   const agent = computed(() => data.value ?? null);
-  const poste = computed(() => agent.value?.nomination_active?.poste ?? null);
 
-  const affectation = computed(() => agent.value?.affectation_active ?? null);
-  const type = computed<StructurableType | null>(() =>
-    estStructurable(affectation.value?.structurable_type) ? affectation.value!.structurable_type as StructurableType : null,
+  /** Intitulé affiché : le poste de la nomination, sinon la fonction de l'agent. */
+  const poste = computed(
+    () => agent.value?.nomination_active?.poste ?? agent.value?.fonction?.nom ?? null,
   );
-  const structureId = computed(() => affectation.value?.structurable_id ?? null);
-  const typeLabel = computed(() => (type.value ? ENTITE_LABEL[type.value] : null));
 
-  /** On ne propose la vue d'entité qu'à qui la dirige ET a une entité résolue. */
+  const resolution = computed<ResolutionEntite>(() =>
+    resoudreEntite(roles.value, agent.value?.affectation_active),
+  );
+
+  const typeLabel = computed(() => {
+    const r = resolution.value;
+    if (r.etat === "artf") return "ARTF";
+    return r.etat === "structure" ? ENTITE_LABEL[r.type] : null;
+  });
+
+  /** Entité ouverte : DG, ou responsable dont l'affectation est cohérente. */
   const estResponsable = computed(
-    () => estPosteResponsable(poste.value) && !!type.value && !!structureId.value,
+    () => resolution.value.etat === "artf" || resolution.value.etat === "structure",
   );
 
-  return { agent, poste, type, typeLabel, structureId, estResponsable, pending, error };
+  return { agent, poste, niveau, resolution, typeLabel, estResponsable, pending, error };
 }

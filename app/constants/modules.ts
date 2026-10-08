@@ -18,8 +18,9 @@ export interface ModuleGate {
   anyRole?: string[];
   /**
    * Conditions **dérivées des données** de la session, hors permissions/rôles.
-   * Seule portée aujourd'hui : `"entite"` = l'utilisateur dirige une structure
-   * (cf. `useMonEntite`). Utilisé pour les sous-onglets, pas pour les modules.
+   * Seule portée aujourd'hui : `"entite"` = l'utilisateur a un rôle de
+   * responsable (cf. `porteesSession`). Utilisé pour les sous-onglets, pas pour
+   * les modules. Le menu et la garde de route doivent fournir la même portée.
    */
   anyScope?: string[];
 }

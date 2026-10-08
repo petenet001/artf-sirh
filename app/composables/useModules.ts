@@ -8,6 +8,8 @@ import {
   visibleNav,
   type AccessContext,
 } from "~/constants/modules";
+import { porteesSession } from "~/constants/entite";
+import { nomsRoles } from "~/constants/utilisateurs";
 
 /**
  * Vue réactive des modules du portail pour l'utilisateur courant.
@@ -17,16 +19,15 @@ import {
 export function useModules() {
   const auth = useAuthStore();
   const route = useRoute();
-  // Portée « entite » : dérivée des données (poste + affectation), pas des
-  // permissions. Elle n'ouvre aucun module, seulement le sous-onglet dédié.
-  const { estResponsable } = useMonEntite();
 
   // Contexte d'accès basé sur la session ; recréé à chaque lecture pour que les
   // computed dépendent bien des permissions réactives du store.
   const ctx = (): AccessContext => ({
     can: (p) => auth.can(p),
     hasRole: (r) => auth.hasRole(r),
-    hasScope: (s) => s === "entite" && estResponsable.value,
+    // Portée « entite » : dérivée des rôles de la session, comme dans la garde
+    // de route (`porteesSession`). Elle n'ouvre que le sous-onglet dédié.
+    hasScope: (s) => porteesSession(auth.user ? nomsRoles(auth.user) : []).includes(s),
   });
 
   const accessible = computed(() => accessibleModules(ctx()));
