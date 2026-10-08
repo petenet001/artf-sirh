@@ -6,6 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 COPY . ./
+
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 # Étape 2 : exécution
