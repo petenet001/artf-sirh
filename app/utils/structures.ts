@@ -254,3 +254,30 @@ export function optionsNiveau(structures: StructureSimple[], tous: string): Opti
     })),
   ];
 }
+
+/** Chaîne de rattachement de l'utilisateur, du bureau à la direction. */
+export interface CheminRattachement {
+  bureau: StructureSimple;
+  service: StructureSimple | null;
+  direction: StructureSimple | null;
+}
+
+/**
+ * Chaîne lue dans la session (`user.bureau.service.direction`, servie par
+ * `/user` depuis 2026-10-01). `undefined` sur `service` = relation non servie
+ * (API antérieure) → `null`, pour que l'appelant retombe sur `GET /bureaux/{id}`.
+ */
+export function cheminDepuisSession(
+  bureau:
+    | (StructureSimple & { service?: (StructureSimple & { direction?: StructureSimple | null }) | null })
+    | null
+    | undefined,
+): CheminRattachement | null {
+  if (!bureau || bureau.service === undefined) return null;
+  const service = bureau.service;
+  return {
+    bureau: { id: bureau.id, nom: bureau.nom, sigle: bureau.sigle },
+    service: service ? { id: service.id, nom: service.nom, sigle: service.sigle } : null,
+    direction: service?.direction ? { ...service.direction } : null,
+  };
+}

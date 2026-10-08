@@ -164,6 +164,7 @@ export const modules: AppModule[] = [
     nav: [
       [
         { label: "Demandes", icon: "i-lucide-file-text", to: "/conges/demandes" },
+        { label: "Congé annuel", icon: "i-lucide-palmtree", to: "/conges/annuel" },
         { label: "Soldes", icon: "i-lucide-wallet", to: "/conges/soldes" },
         { label: "Absences", icon: "i-lucide-user-x", to: "/conges/absences" },
         { label: "Paramétrage", icon: "i-lucide-sliders-horizontal", to: "/conges/parametrage" },
@@ -171,6 +172,9 @@ export const modules: AppModule[] = [
     ],
     navGates: {
       "/conges/demandes": { anyPermission: ["consulter-conges"] },
+      // Écran des valideurs et de la RH. L'agent propose depuis « Mes congés » :
+      // `consulter-conges` seul lui ouvrirait la liste de tous les agents.
+      "/conges/annuel": { anyPermission: ["valider-conges"] },
       "/conges/soldes": { anyPermission: ["consulter-conges"] },
       "/conges/absences": { anyPermission: ["consulter-absences"] },
       "/conges/parametrage": { anyPermission: ["valider-conges"] },

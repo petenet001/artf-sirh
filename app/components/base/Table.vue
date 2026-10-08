@@ -83,22 +83,29 @@ const filteredCount = computed<number>(() => {
   return table.value?.tableApi?.getFilteredRowModel().rows.length ?? props.data.length;
 });
 
-// Changement de page / de taille : on passe par l'API du tableau (TanStack).
-// Muter une propriété imbriquée de `pagination` ne déclenche pas la re-slice
-// de UTable — `setPageIndex` / `setPageSize` sont la voie fiable (cf. doc Nuxt UI).
+// Changement de page / de taille. Muter une propriété imbriquée de `pagination`
+// ne déclenche pas la re-slice de UTable (TanStack compare l'objet par
+// identité) : on passe par `setPageIndex`, ou on **remplace** l'objet entier.
 // `v-model:pagination` renvoie ensuite l'état à `pagination` pour l'affichage.
 const page = computed(() => pagination.value.pageIndex + 1);
 function goToPage(p: number) {
   tableApi.value?.setPageIndex(p - 1);
 }
 
-// Sélecteur « Affichage [10] » du pied de table.
-const pageSizes = [10, 25, 50, 100];
+// Sélecteur « Affichage [10] » du pied de table. La taille initiale est
+// proposée même hors de la liste standard (ex. 15), sinon le sélecteur
+// s'afficherait vide.
+const pageSizes = computed(() =>
+  [...new Set([10, 25, 50, 100, props.pageSize ?? 10])].sort((a, b) => a - b),
+);
+// Taille + retour en première page en **une seule** écriture : enchaîner
+// `setPageSize` puis `setPageIndex` ne marche pas, le second appel repart de
+// l'état d'avant le premier (le `v-model` n'est resynchronisé qu'au rendu
+// suivant) et écrase la nouvelle taille.
 const perPage = computed<number>({
   get: () => pagination.value.pageSize,
   set: (size: number) => {
-    tableApi.value?.setPageSize(size);
-    tableApi.value?.setPageIndex(0);
+    pagination.value = { pageIndex: 0, pageSize: size };
   },
 });
 
@@ -108,7 +115,7 @@ const to = computed(() => Math.min(from.value + perPage.value - 1, filteredCount
 
 // Revenir à la première page quand la recherche ou les données changent.
 watch([globalFilter, () => props.data], () => {
-  pagination.value.pageIndex = 0;
+  pagination.value = { ...pagination.value, pageIndex: 0 };
 });
 </script>
 

@@ -14,9 +14,16 @@ import {
  * (art. 64), besoins de formation et décision RH.
  *
  * Toutes les actions passent par `EvaluationsActionsFiche`, qui ne propose que
- * ce que l'étape serveur **et** l'identité du connecté autorisent. Après chaque
- * action on recharge le `show` : c'est la seule route qui renvoie la fiche avec
- * ses relations (notes, session, réclamation, avis).
+ * ce que l'étape serveur **et** l'identité du connecté autorisent.
+ *
+ * ## Mise à jour de l'écran
+ *
+ * La notation enchaîne 24 critères : elle ne doit jamais vider la page. Deux
+ * régimes, décrits dans `useEvaluation` :
+ * - la grille renvoie la fiche recalculée → `appliquer`, sans appel réseau ;
+ * - les autres actions (modales, avis, réclamation) touchent des relations que
+ *   leur réponse ne porte pas → `rafraichirEnFond`, qui refetch le `show` en
+ *   laissant l'écran en place.
  */
 const route = useRoute();
 const id = computed(() => Number(route.params.id));
@@ -26,7 +33,8 @@ const acteur = useActeurEvaluation();
 const toast = useToast();
 const handleError = useApiError();
 
-const { evaluation, pending, error, refresh } = useEvaluation(id);
+const { evaluation, chargementInitial, rafraichissement, error, rafraichirEnFond, appliquer } =
+  useEvaluation(id);
 
 const notateur = computed(() => !!evaluation.value && estNotateur(evaluation.value, acteur.value));
 const grilleEditable = computed(
@@ -59,7 +67,7 @@ async function basculerTableau(inscrire: boolean) {
     if (inscrire) await api.inscrireTableau(id.value);
     else await api.retirerTableau(id.value);
     toast.add({ title: inscrire ? "Fiche inscrite au tableau" : "Fiche retirée du tableau", color: "success" });
-    await refresh();
+    await rafraichirEnFond();
   } catch (err) {
     handleError(err);
   } finally {
@@ -97,7 +105,7 @@ async function enregistrerContexte() {
     });
     toast.add({ title: "Contexte enregistré", color: "success" });
     contexteOpen.value = false;
-    await refresh();
+    await rafraichirEnFond();
   } catch (err) {
     handleError(err);
   } finally {
@@ -112,7 +120,12 @@ async function enregistrerContexte() {
       <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" @click="$router.back()">Retour</UButton>
     </template>
 
-    <BaseDataState :pending="pending" :error="error" :empty="!evaluation" empty-label="Fiche introuvable">
+    <BaseDataState
+      :pending="chargementInitial"
+      :error="error"
+      :empty="!chargementInitial && !evaluation"
+      empty-label="Fiche introuvable"
+    >
       <div v-if="evaluation" class="space-y-6">
         <!-- En-tête -->
         <div class="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-default bg-default p-5">
@@ -152,6 +165,12 @@ async function enregistrerContexte() {
                 Inscrite au tableau d'avancement
               </UBadge>
               <EvaluationsMentionBadge :note="evaluation.note_globale" :mention="evaluation.mention" />
+              <!-- Témoin de mise à jour : l'écran reste lisible pendant le refetch,
+                   mais on ne laisse pas croire que la fiche est figée. -->
+              <span v-if="rafraichissement" class="flex items-center gap-1.5 text-xs text-muted">
+                <UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" />
+                Mise à jour…
+              </span>
             </div>
           </div>
 
@@ -177,7 +196,11 @@ async function enregistrerContexte() {
             >
               {{ action.label }}
             </UButton>
-            <EvaluationsActionsFiche :evaluation="evaluation" @changed="refresh" @noter="versLaGrille" />
+            <EvaluationsActionsFiche
+              :evaluation="evaluation"
+              @changed="rafraichirEnFond"
+              @noter="versLaGrille"
+            />
           </div>
         </div>
 
@@ -201,7 +224,7 @@ async function enregistrerContexte() {
               <EvaluationsGrilleNotation
                 :evaluation="evaluation"
                 :editable="grilleEditable"
-                @saved="refresh"
+                @saved="appliquer"
               />
             </div>
           </div>
@@ -253,7 +276,7 @@ async function enregistrerContexte() {
 
             <!-- Chaîne d'avis hiérarchiques (art. 64) -->
             <div class="rounded-xl border border-default bg-default p-5">
-              <EvaluationsAvisHierarchiques :evaluation="evaluation" @changed="refresh" />
+              <EvaluationsAvisHierarchiques :evaluation="evaluation" @changed="rafraichirEnFond" />
             </div>
 
             <!-- Besoins de formation relevés pendant l'évaluation -->
@@ -267,7 +290,7 @@ async function enregistrerContexte() {
         v-if="evaluation && peutReattribuer"
         v-model:open="reattributionOpen"
         :evaluation="evaluation"
-        @done="refresh"
+        @done="rafraichirEnFond"
       />
     </BaseDataState>
 

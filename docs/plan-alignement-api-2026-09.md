@@ -987,6 +987,54 @@ impératif : **scope d'abord, filtre ensuite**.
 **L'interface ne bougera pas** quand ce sera livré : seul le contenu de
 `filtrer()` descendra côté serveur.
 
+## 5 terdecies. Backend develop @ 34a0574 (2026-10-02) — congé annuel et contexte utilisateur — ✅ 2026-10-02
+
+Note FE §2c (congé annuel) et journal §7. Vérifié par curl contre l'API locale
+(campagne → proposition → clôture → visa N+1 → attribution RH → attestation).
+
+### Congé annuel — `/api/conges-annuels`
+
+- Contrat : `schemas/conge-annuel.ts` (campagne, report, entrées) ;
+  `demandeCongeSchema` + `origine`, `origine_label`, `campagne_conge_annuel_id`,
+  `date_reprise` ; `congeSoldeSchema` + `jours_reportes`. Repo
+  `api/conges-annuels.ts` ; règles pures `constants/conges-annuels.ts` (testées).
+- **Mes congés** : bloc « Congé annuel » (campagne, durée posée, dépôt
+  `campagne` pendant l'ouverture, `apres_cloture` ensuite). Modale
+  `CongesCongeAnnuelModal` : **date de départ seule**, fin / reprise / jours
+  affichés après la réponse.
+- **Congés › Congé annuel** (`/conges/annuel`, gate `valider-conges`) : onglets
+  Propositions (file + liste filtrée + stats), Campagnes (créer / ouvrir /
+  clôturer / sans proposition — `rh` ou `admin` **seulement**), Reports
+  (N+1 propose, RH accorde / refuse).
+- Détail `/conges/demandes/{id}` : si `origine` posée, actions et PDF sur
+  `/conges-annuels`, campagne chargée (annulation tant qu'ouverte, circuit
+  verrouillé avant clôture, pas d'étape DG).
+- Le type « Congé annuel » est retiré du formulaire générique.
+
+### Contexte utilisateur — `GET /user`
+
+`userSchema` + `structure` (`{ id, nom, sigle, type }`, suit `vue_personnel`),
+`fonction`, `bureau.service.direction`. Badge de périmètre et profil
+l'affichent ; `usePerimetrePersonnel` lit la chaîne dans la session
+(`cheminDepuisSession`), `GET /bureaux/{id}` n'est plus qu'un repli.
+
+### Évaluation (correctifs B3 / B4 / B5)
+
+Rien à changer : `reclamation` = la plus récente, `envoyer-rh` en 422
+`errors.reclamation` passe par `useApiError`, la cloche gère déjà le domaine
+`evaluation`.
+
+### Remontées backend
+
+| # | Constat |
+|---|---|
+| B8 | `POST /conges/demandes` accepte encore le type « Congé annuel » (le front le masque). |
+| B9 | `POST /conges/demandes/{id}/valider-n1` / `valider-rh` ne vérifie pas la clôture de campagne : contournement de la règle « traitement après clôture ». |
+| B10 | Campagne et décision des reports : `hasRole('rh'\|'admin')` exact → `rh-personnel` (bureau qui gère les congés) reçoit 403. Voulu ? |
+| B11 | Validation (422) avant le contrôle de rôle (403) sur `POST /campagnes`. Mineur. |
+| B12 | `plan-module-conges-annuels.md` §3 dit encore « l'agent propose début et fin » (contredit §4). |
+| — | Données locales : lancer `php artisan rh:reprendre-hierarchie` (aucun N+1 posé sinon, circuit N+1 bloqué). Comptes `AgentsGestRhSeeder` : mot de passe `password`. |
+
 ## 6. Décisions à trancher
 
 | # | Sujet | Proposition |

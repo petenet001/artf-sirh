@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  cheminDepuisSession,
   arbreVide,
   court,
   dansPerimetre,
@@ -244,5 +245,31 @@ describe("le filtre client ne retranche jamais le périmètre du serveur", () =>
   it("un périmètre de direction couvre bien les bureaux de ses services", () => {
     // C'est précisément ce que la version fautive ratait.
     expect(filtrer({ type: TYPE_DIRECTION, id: 1 })).toHaveLength(4);
+  });
+});
+
+describe("cheminDepuisSession", () => {
+  it("lit la chaîne bureau → service → direction servie par /user", () => {
+    const chemin = cheminDepuisSession({
+      id: 3,
+      nom: "Bureau Personnel",
+      sigle: "B.P",
+      service: { id: 2, nom: "Service RH", sigle: "S.R.H", direction: { id: 1, nom: "DRHL", sigle: "DRHL" } },
+    });
+    expect(chemin?.service?.id).toBe(2);
+    expect(chemin?.direction?.id).toBe(1);
+  });
+
+  it("bureau sans service : chaîne courte, sans repli", () => {
+    expect(cheminDepuisSession({ id: 3, nom: "Bureau isolé", service: null })).toEqual({
+      bureau: { id: 3, nom: "Bureau isolé", sigle: undefined },
+      service: null,
+      direction: null,
+    });
+  });
+
+  it("relation non servie (API antérieure) ou pas de bureau : null → repli réseau", () => {
+    expect(cheminDepuisSession({ id: 3, nom: "Bureau Personnel" })).toBeNull();
+    expect(cheminDepuisSession(null)).toBeNull();
   });
 });

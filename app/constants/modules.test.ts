@@ -230,6 +230,20 @@ describe("sous-onglets du module d'accueil", () => {
   });
 });
 
+describe("sous-onglets du module Congés — congé annuel", () => {
+  const conges = modules.find((m) => m.key === "conges")!;
+  const onglets = (ctx: AccessContext) => visibleNav(conges, ctx).flat().map((i) => i.to);
+
+  it("l'agent n'a pas l'écran de gestion : il propose depuis « Mes congés »", () => {
+    expect(onglets(ctxForRole("agent"))).not.toContain("/conges/annuel");
+  });
+
+  it("RH et bureau Personnel (valider-conges) y accèdent", () => {
+    expect(onglets(ctxForRole("rh"))).toContain("/conges/annuel");
+    expect(onglets(ctxForRole("rh-personnel"))).toContain("/conges/annuel");
+  });
+});
+
 describe("sous-onglets du module Évaluations", () => {
   const evaluations = modules.find((m) => m.key === "evaluations")!;
   const onglets = (ctx: AccessContext) => visibleNav(evaluations, ctx).flat().map((i) => i.to);

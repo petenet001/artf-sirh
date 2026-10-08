@@ -38,7 +38,7 @@ onBeforeUnmount(() => window.removeEventListener("scroll", onScroll));
       <!-- Marque → 1er module autorisé -->
       <NuxtLink :to="landing" class="flex shrink-0 items-center gap-2.5">
         <img src="/logo/Logo_Simple_Couleur.svg" alt="Logo ARTF" class="h-6 w-6" />
-        <span class="text-lg font-bold tracking-tight text-blue-950"> SIRH</span>
+        <span class="text-lg font-bold tracking-tight italic text-blue-950"> SIRH</span>
       </NuxtLink>
 
       <!-- Onglets (desktop) -->

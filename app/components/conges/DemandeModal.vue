@@ -3,6 +3,7 @@ import type { FormSubmitEvent } from "@nuxt/ui";
 import { demandeCongeInputSchema, type DemandeCongeInput } from "~/schemas/demande-conge";
 import type { TypeConge } from "~/schemas/type-conge";
 import { agentNom } from "~/constants/conges";
+import { estTypeCongeAnnuel } from "~/constants/conges-annuels";
 
 /**
  * Modale de soumission d'une demande de congé.
@@ -18,6 +19,10 @@ import { agentNom } from "~/constants/conges";
  *
  * Le type sélectionné pilote le reste : un justificatif devient obligatoire si
  * `justificatif_requis` (envoi en multipart, géré par le repository).
+ *
+ * Le **congé annuel** n'est pas proposé : il se dépose sur `/conges-annuels`
+ * (campagne, date de départ seule — `CongesCongeAnnuelModal`). L'API accepte
+ * encore ce type ici, mais la demande échapperait alors à la campagne.
  */
 const props = withDefaults(defineProps<{ open: boolean; pourMoi?: boolean }>(), { pourMoi: false });
 const emit = defineEmits<{ "update:open": [boolean]; created: [] }>();
@@ -32,7 +37,7 @@ const agentsApi = useAgentsApi();
 const open = computed({ get: () => props.open, set: (v) => emit("update:open", v) });
 
 const { data: typesData } = useAsyncData("conge-types-select", () => typesApi.list());
-const types = computed(() => typesData.value?.data ?? []);
+const types = computed(() => (typesData.value?.data ?? []).filter((t) => !estTypeCongeAnnuel(t)));
 const typeOptions = computed(() => types.value.map((t) => ({ label: t.nom, value: t.id })));
 
 /** L'agent est-il imposé (demande pour soi) ? */
@@ -133,7 +138,11 @@ async function onSubmit(event: FormSubmitEvent<DemandeCongeInput>) {
           <UInput :model-value="auth.user?.name ?? ''" disabled class="w-full" />
         </UFormField>
 
-        <UFormField label="Type de congé" name="type_conge_id">
+        <UFormField
+          label="Type de congé"
+          name="type_conge_id"
+          help="Le congé annuel se propose à part, pendant la campagne (Mon espace › Mes congés)."
+        >
           <USelectMenu
             v-model="state.type_conge_id"
             value-key="value"

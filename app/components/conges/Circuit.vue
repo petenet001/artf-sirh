@@ -11,19 +11,35 @@ import { ETAPES_CIRCUIT_CONGE, type EtapeCircuitConge } from "~/constants/conges
  * n'affiche les boutons que si la demande figure dans **sa file**
  * (`GET /conges/demandes/a-valider`), qui applique exactement cette règle.
  */
-const props = defineProps<{ demande: DemandeConge }>();
+const props = defineProps<{
+  demande: DemandeConge;
+  /**
+   * Congé annuel (`origine` posée) : actions et file sur `/conges-annuels`, où
+   * la règle « traitement après clôture » est appliquée. Passer par
+   * `/conges/demandes` la contournerait.
+   */
+  annuel?: boolean;
+  /** Proposition de campagne encore ouverte : rien à signer avant la clôture. */
+  enAttenteCloture?: boolean;
+}>();
 const emit = defineEmits<{ changed: [] }>();
 
 const auth = useAuthStore();
-const api = useDemandesCongeApi();
+const congesApi = useDemandesCongeApi();
+const annuelsApi = useCongesAnnuelsApi().demandes;
+// Mêmes verbes des deux côtés ; le congé annuel n'a pas d'étape DG.
+const api = computed(() => (props.annuel ? annuelsApi : congesApi));
 const toast = useToast();
 const handleError = useApiError();
 
 const id = computed(() => props.demande.id);
 
-// Étapes réellement dans le circuit de ce type (flag `necessite_*`).
+// Étapes réellement dans le circuit de ce type (flag `necessite_*`). Le congé
+// annuel n'a jamais de visa DG, quel que soit le paramétrage du type.
 const etapes = computed(() =>
-  ETAPES_CIRCUIT_CONGE.filter((e) => props.demande.type_conge?.[e.requisFlag]),
+  ETAPES_CIRCUIT_CONGE.filter(
+    (e) => props.demande.type_conge?.[e.requisFlag] && !(props.annuel && e.key === "dg"),
+  ),
 );
 
 type EtapeEtat = "validee" | "rejetee" | "courante" | "a_venir";
@@ -49,8 +65,8 @@ const ETAT_META: Record<EtapeEtat, { icon: string; classe: string; label: string
 const { data: file } = useAsyncData(
   () => `conge-signable-${id.value}`,
   () =>
-    auth.can("valider-conges") && props.demande.prochaine_etape
-      ? api.aValider()
+    auth.can("valider-conges") && props.demande.prochaine_etape && !props.enAttenteCloture
+      ? api.value.aValider()
       : Promise.resolve(null),
   { watch: [() => props.demande.prochaine_etape] },
 );
@@ -61,9 +77,9 @@ const peutSigner = computed(() => file.value?.data.some((d) => d.id === id.value
 const busy = ref(false);
 
 const validerFns = {
-  n1: () => api.validerN1(id.value),
-  rh: () => api.validerRH(id.value),
-  dg: () => api.validerDG(id.value),
+  n1: () => api.value.validerN1(id.value),
+  rh: () => api.value.validerRH(id.value),
+  dg: () => congesApi.validerDG(id.value),
 } as const;
 
 async function valider(e: EtapeCircuitConge) {
@@ -91,9 +107,9 @@ function ouvrirRejet(e: EtapeCircuitConge) {
 }
 
 const rejeterFns = {
-  n1: (c: string) => api.rejeterN1(id.value, { commentaire: c }),
-  rh: (c: string) => api.rejeterRH(id.value, { commentaire: c }),
-  dg: (c: string) => api.rejeterDG(id.value, { commentaire: c }),
+  n1: (c: string) => api.value.rejeterN1(id.value, { commentaire: c }),
+  rh: (c: string) => api.value.rejeterRH(id.value, { commentaire: c }),
+  dg: (c: string) => congesApi.rejeterDG(id.value, { commentaire: c }),
 } as const;
 
 async function confirmerRejet() {
@@ -117,6 +133,15 @@ async function confirmerRejet() {
 
 <template>
   <div>
+    <UAlert
+      v-if="enAttenteCloture && demande.statut === 'soumise'"
+      class="mb-4"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Campagne encore ouverte"
+      description="Le N+1 puis la RH examinent les propositions après la clôture de la campagne."
+    />
     <p v-if="demande.statut === 'annulee'" class="text-sm text-muted">
       Demande retirée par le demandeur avant toute validation : circuit interrompu.
     </p>

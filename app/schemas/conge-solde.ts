@@ -18,6 +18,8 @@ export const congeSoldeSchema = z.object({
   solde_actuel: z.number(),
   // Bonus d'ancienneté inclus dans `solde_initial` (0 sans `date_prise_service`).
   jours_anciennete: z.number().optional(),
+  // Reliquat de l'année précédente versé par un report accordé (congé annuel).
+  jours_reportes: z.number().optional(),
 });
 
 export type CongeSolde = z.infer<typeof congeSoldeSchema>;

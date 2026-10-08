@@ -40,7 +40,20 @@ const bureauRattachement = computed(() => {
       ? `Tout le personnel — rattaché à ${nom}`
       : "Tout le personnel (aucun cloisonnement)";
   }
-  return nom ? `${LIBELLE_NIVEAU[vuePersonnel.value]} — ${nom}` : LIBELLE_NIVEAU[vuePersonnel.value];
+  // Le serveur nomme la structure du périmètre (direction, service ou bureau).
+  const s = u.structure;
+  const perimetre = s ? (s.sigle ? `${s.nom} (${s.sigle})` : s.nom) : nom;
+  return perimetre ? `${LIBELLE_NIVEAU[vuePersonnel.value]} — ${perimetre}` : LIBELLE_NIVEAU[vuePersonnel.value];
+});
+
+/** Rattachement complet : bureau › service › direction (chaîne servie par `/user`). */
+const cheminRattachement = computed(() => {
+  const b = auth.user?.bureau;
+  if (!b) return null;
+  return [b.service?.direction, b.service, b]
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .map((x) => x.sigle ?? x.nom)
+    .join(" › ");
 });
 
 // Fiche agent liée (chargée seulement si l'utilisateur en a une).
@@ -121,6 +134,8 @@ const tabs = computed<TabsItem[]>(() => [
                   label="Périmètre de consultation"
                   :value="bureauRattachement"
                 />
+                <BaseInfoItem icon="i-lucide-briefcase" label="Fonction" :value="auth.user.fonction?.nom" />
+                <BaseInfoItem icon="i-lucide-network" label="Rattachement" :value="cheminRattachement" />
                 <BaseInfoItem icon="i-lucide-calendar-plus" label="Membre depuis" :value="formatDateLong(auth.user.created_at)" />
                 <BaseInfoItem icon="i-lucide-clock" label="Dernière mise à jour" :value="formatDateTime(auth.user.updated_at)" />
               </dl>

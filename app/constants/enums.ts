@@ -137,6 +137,19 @@ export const STATUTS_DEMANDE_CONGE = [
  */
 export const ETAPES_CONGE = ["valider-n1", "valider-rh", "valider-dg"] as const;
 
+/**
+ * App\Enums\OrigineDemandeCongeAnnuel — circuit d'un congé annuel déposé sur
+ * `/conges-annuels`. `null` sur toute autre demande (y compris un congé annuel
+ * historique saisi via `/conges/demandes`).
+ */
+export const ORIGINES_CONGE_ANNUEL = ["campagne", "apres_cloture"] as const;
+
+/** App\Enums\StatutCampagneCongeAnnuel — brouillon → ouverte → clôturée. */
+export const STATUTS_CAMPAGNE_CONGE_ANNUEL = ["brouillon", "ouverte", "cloturee"] as const;
+
+/** App\Enums\StatutReportCongeAnnuel — report pour nécessité de service. */
+export const STATUTS_REPORT_CONGE_ANNUEL = ["propose", "accorde", "refuse"] as const;
+
 /** App\Enums\StatutAbsence — cycle d'une absence (circuit unique, pas de N+1/RH/DG). */
 export const STATUTS_ABSENCE = ["en_attente", "validee", "rejetee"] as const;
 

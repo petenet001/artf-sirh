@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { agentSummarySchema } from "~/schemas/agent-summary";
 import { typeCongeSchema } from "~/schemas/type-conge";
-import { STATUTS_DEMANDE_CONGE, ETAPES_CONGE } from "~/constants/enums";
+import { STATUTS_DEMANDE_CONGE, ETAPES_CONGE, ORIGINES_CONGE_ANNUEL } from "~/constants/enums";
 
 /**
  * Justificatif attaché à une demande. `url` pointe `GET
@@ -21,8 +21,14 @@ export const demandeCongeSchema = z.object({
   agent: agentSummarySchema.nullable().optional(),
   type_conge_id: z.number(),
   type_conge: typeCongeSchema.optional(),
+  // Congé annuel de campagne (`/conges-annuels`) : `null` sur toute autre demande.
+  campagne_conge_annuel_id: z.number().nullable().optional(),
+  origine: z.enum(ORIGINES_CONGE_ANNUEL).nullable().optional(),
+  origine_label: z.string().nullable().optional(),
   date_debut: z.string().nullable().optional(),
   date_fin: z.string().nullable().optional(),
+  // Premier jour ouvrable après la fin — calculé serveur (congé annuel seulement).
+  date_reprise: z.string().nullable().optional(),
   // Calculé serveur (week-ends + fériés exclus) — jamais envoyé par le FE.
   nb_jours: z.number().nullable().optional(),
   motif: z.string().nullable().optional(),

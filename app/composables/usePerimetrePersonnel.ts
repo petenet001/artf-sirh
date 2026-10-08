@@ -1,5 +1,6 @@
 import {
   arbreVide,
+  cheminDepuisSession,
   dansPerimetre,
   indexerNoms,
   libelleStructure,
@@ -43,10 +44,11 @@ import { niveauCloisonnement, nomsRoles, vueEffective } from "~/constants/utilis
  * | directeur | sa direction entière | service, puis bureau |
  * | métier RH, DG | tout l'ARTF | direction, service, bureau |
  *
- * ## Une seule requête pour se situer
+ * ## Se situer sans requête
  *
- * `GET /bureaux/{id}` charge `service.direction` : le rattachement de
- * l'utilisateur donne donc sa chaîne complète en un appel. Les niveaux du
+ * Depuis 2026-10-01, la session (`/user`) porte `bureau.service.direction` : la
+ * chaîne de l'utilisateur est lue directement. `GET /bureaux/{id}` ne sert plus
+ * que de repli (session persistée avant la mise à jour de l'API). Les niveaux du
  * dessous se chargent ensuite à la demande, par les sous-routes
  * `/directions/{id}/services` et `/services/{id}/bureaux` — les listes plates
  * ne portant ni `service_id` ni `direction_id`.
@@ -90,6 +92,8 @@ export function usePerimetrePersonnel() {
     async () => {
       const id = auth.user?.bureau_id;
       if (!id) return null;
+      const servi = cheminDepuisSession(auth.user?.bureau);
+      if (servi) return servi;
       try {
         const { data } = await bureauxApi.getById(id);
         return {

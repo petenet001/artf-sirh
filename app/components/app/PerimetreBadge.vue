@@ -16,19 +16,23 @@ import { LIBELLE_NIVEAU, vueEffective } from "~/constants/utilisateurs";
  *
  * Rien n'est affiché sur une vue globale : un badge « vous voyez tout »
  * n'apprend rien à personne.
+ *
+ * Le libellé vient de `structure` (calculée par le serveur selon la vue : la
+ * direction d'un directeur, le service d'un chef de service…), le bureau de
+ * rattachement n'étant qu'un repli pour une API antérieure.
  */
 const auth = useAuthStore();
 
 const vue = computed(() => (auth.user ? vueEffective(auth.user) : "globale"));
 const restreint = computed(() => vue.value !== "globale");
 
-const bureau = computed(() => auth.user?.bureau);
-const libelle = computed(() => bureau.value?.sigle ?? bureau.value?.nom ?? "périmètre restreint");
+const structure = computed(() => auth.user?.structure ?? auth.user?.bureau ?? null);
+const libelle = computed(() => structure.value?.sigle ?? structure.value?.nom ?? "périmètre restreint");
 
 const infobulle = computed(
   () =>
     `Les listes d'agents, de congés, d'absences et de dossiers disciplinaires sont limitées à `
-    + `${LIBELLE_NIVEAU[vue.value]}${bureau.value?.nom ? ` (${bureau.value.nom})` : ""}.`,
+    + `${LIBELLE_NIVEAU[vue.value]}${structure.value?.nom ? ` (${structure.value.nom})` : ""}.`,
 );
 </script>
 

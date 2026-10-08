@@ -73,7 +73,7 @@ async function onGenerate() {
       </div>
 
       <BaseDataState :pending="pending" :error="error" :empty="!lignes.length" empty-label="Grille non générée">
-        <BaseTable :data="lignes" :columns="columns" :page-size="15" searchable search-placeholder="Rechercher (grade, catégorie)…" />
+        <BaseTable :data="lignes" :columns="columns" :page-size="10" searchable search-placeholder="Rechercher (grade, catégorie)…" />
       </BaseDataState>
     </div>
 

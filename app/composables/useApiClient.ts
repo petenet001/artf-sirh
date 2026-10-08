@@ -1,4 +1,5 @@
 import { reactionSession } from "~/utils/httpErreur";
+import { normaliserQuery } from "~/utils/query";
 
 /**
  * Client HTTP unique de l'application.
@@ -21,6 +22,12 @@ import { reactionSession } from "~/utils/httpErreur";
  *
  * Les deux étaient traités pareil : c'est ce qui provoquait les déconnexions
  * inexpliquées sur une page interdite.
+ *
+ * ## Booléens en query
+ *
+ * `{ actif: true }` partirait en `?actif=true`, que les filtres d'égalité du
+ * backend ne reconnaissent pas (liste vide). On envoie `1` / `0` — voir
+ * `utils/query.ts`.
  */
 export function useApiClient() {
   const { apiBase } = useRuntimeConfig().public;
@@ -33,6 +40,7 @@ export function useApiClient() {
       headers.set("Accept", "application/json");
       if (token.value) headers.set("Authorization", `Bearer ${token.value}`);
       options.headers = headers;
+      options.query = normaliserQuery(options.query);
     },
     onResponseError({ response }) {
       if (reactionSession(response.status, response.url) !== "deconnecter") return;

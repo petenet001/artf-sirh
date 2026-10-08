@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build: .
+    container_name: rh-artf-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_PUBLIC_API_BASE: http://172.20.16.35:8081/api
+    networks:
+      - rh-artf
+
+networks:
+  rh-artf:
+    external: true
+    name: project-api-rh-artf_rh-artf

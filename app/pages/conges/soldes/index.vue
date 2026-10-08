@@ -57,6 +57,12 @@ const colonnesToutes: TableColumn<CongeSolde>[] = [
     header: "Dont ancienneté",
     cell: ({ row }) => (row.original.jours_anciennete ? `+${row.original.jours_anciennete}` : "—"),
   },
+  {
+    // Report pour nécessité de service accordé (congé annuel) — inclus dans le solde initial.
+    id: "jours_reportes",
+    header: "Dont reportés",
+    cell: ({ row }) => (row.original.jours_reportes ? `+${row.original.jours_reportes}` : "—"),
+  },
   { id: "solde_actuel", header: "Solde actuel" },
 ];
 

@@ -2,6 +2,7 @@
 import type { TableColumn } from "@nuxt/ui";
 import type { DemandeConge } from "~/schemas/demande-conge";
 import { STATUTS_DEMANDE_CONGE } from "~/constants/enums";
+import { libelleTypeDemande } from "~/constants/conges-annuels";
 import { agentNom, STATUT_DEMANDE_LABEL, type EtapeConge } from "~/constants/conges";
 import { estRh } from "~/constants/roles";
 
@@ -61,7 +62,7 @@ const peutDemanderPourMoi = computed(() => peutCreer.value && !!auth.user?.agent
 
 const columns: TableColumn<DemandeConge>[] = [
   { id: "agent", header: "Agent", accessorFn: (d) => agentNom(d.agent), cell: ({ row }) => agentNom(row.original.agent) },
-  { id: "type", header: "Type", cell: ({ row }) => row.original.type_conge?.nom ?? "—" },
+  { id: "type", header: "Type", cell: ({ row }) => libelleTypeDemande(row.original) },
   {
     id: "periode",
     header: "Période",

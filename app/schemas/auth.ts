@@ -8,11 +8,31 @@ import { VUES_PERSONNEL } from "~/constants/enums";
  * `bureau_id`, lui, est toujours présent — `null` = accès non cloisonné
  * (admin, DG, et tout compte hors DRHL).
  */
-export const bureauRattachementSchema = z.object({
+const structureRefSchema = z.object({
   id: z.number(),
   nom: z.string(),
   sigle: z.string().nullable().optional(),
 });
+
+export const bureauRattachementSchema = structureRefSchema.extend({
+  // Chaîne complète depuis 2026-10-01 (`bureau.service.direction` chargé au
+  // login, sur `/user` et sur `/users`) : plus besoin de `GET /bureaux/{id}`.
+  service: structureRefSchema
+    .extend({ direction: structureRefSchema.nullable().optional() })
+    .nullable()
+    .optional(),
+});
+
+/**
+ * Structure du périmètre réel, nom complet compris (`UserResource::blocStructure`).
+ * Suit `vue_personnel` : la direction d'un directeur, le service d'un chef de
+ * service, sinon le bureau. `null` en vue globale ou sans rattachement.
+ */
+export const structurePerimetreSchema = structureRefSchema.extend({
+  type: z.enum(["direction", "service", "bureau"]),
+});
+
+export type StructurePerimetre = z.infer<typeof structurePerimetreSchema>;
 
 /** Identifiants de connexion. Sert aussi à valider le formulaire de login. */
 export const loginSchema = z.object({
@@ -52,6 +72,9 @@ export const userSchema = z.object({
    * Optionnel par prudence : une API antérieure ne le renvoie pas.
    */
   vue_personnel: z.enum(VUES_PERSONNEL).nullable().optional(),
+  structure: structurePerimetreSchema.nullable().optional(),
+  /** Fonction de l'agent rattaché (`null` sans agent ou sans fonction). */
+  fonction: structureRefSchema.nullable().optional(),
   roles: z.array(roleSchema).optional().default([]),
   permissions: z.array(permissionSchema).optional().default([]),
   created_at: z.string().optional(),
