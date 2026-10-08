@@ -165,7 +165,7 @@ Nuances : en `signee_evalue` l'agent peut aussi `reclamer` ; `commission_prepara
 
 | # | Problème | Impact front | Où |
 |---|---|---|---|
-| ~~B1~~ | ~~`apiResource(...)->middleware([assoc])`~~ — **corrigé** le 15/09 : `questions-evaluation`, `users` et `roles` déclarent désormais une permission par méthode | — | `routes/api.php:641` |
+| B1 | `apiResource(...)->middleware([assoc])` applique **toutes** les permissions à **chaque** route (les clés sont ignorées). Annoncé corrigé le 15/09, ce ne l'était pas. **Corrigé pour de vrai** le 2026-10-08 sur `questions-evaluation` seulement (`middlewareFor`, voir §5 quaterdecies) ; **toujours présent** sur `users`, `roles` et `grille-classes` | un compte qui n'a que la lecture reçoit 403 | `routes/api.php` |
 | B2 | Aucun contrôle d'acteur dans `/avancements` (hors PDF) | tout chef peut « valider RH » / décider ; tout agent peut signer la fiche d'un autre. Le front masque, mais ce n'est pas une sécurité | `EvaluationStatutService`, commissions, bonifications |
 | ~~B3~~ | **corrigé** le 17/09 (branche backend `fix/evaluation-b3-b4-b5`) : le service est branché sur l'attribution de fiche, la signature du notateur, la transmission RH, la validation, le rejet, l'ouverture des commissions, l'avancement, la bonification et l'exceptionnel | la cloche reçoit le domaine `evaluation` ; le lien front était déjà prêt | services évaluation |
 | ~~B4~~ | **corrigé** le 17/09 : `avancerEchelon` délègue à `SalaireAgentService::avancerEchelons`, qui connaît la grille, clôture la ligne courante et synchronise `agents.echelon_id` — comme le faisaient déjà la bonification (art. 71) et l'exceptionnel (art. 72) | « Appliquer l'avancement » fonctionne et crée la nouvelle ligne salariale | `CommissionAvancementService::avancerEchelon` |
@@ -1034,6 +1034,43 @@ Rien à changer : `reclamation` = la plus récente, `envoyer-rh` en 422
 | B11 | Validation (422) avant le contrôle de rôle (403) sur `POST /campagnes`. Mineur. |
 | B12 | `plan-module-conges-annuels.md` §3 dit encore « l'agent propose début et fin » (contredit §4). |
 | — | Données locales : lancer `php artisan rh:reprendre-hierarchie` (aucun N+1 posé sinon, circuit N+1 bloqué). Comptes `AgentsGestRhSeeder` : mot de passe `password`. |
+
+## 5 quaterdecies. Backend develop @ ee78aa6 (2026-10-08) — grille lisible, PDF à la charte — ✅ 2026-10-08
+
+Diff `34a0574..ee78aa6` : charte graphique des PDF, fiche d'évaluation PDF
+refondue, Docker, dump `gestRHdb` déplacé dans `database/dumps/`. Un seul
+changement de contrat, vérifié avec `route:list -v`.
+
+### Grille de critères — lecture ouverte
+
+`GET /avancements/questions-evaluation[/{id}]` exige désormais
+`consulter-evaluations` seul (notateur N+1, agent évalué, RH) ; `POST / PUT /
+DELETE` restent sur `creer-evaluations`. Avant, l'ancien tableau associatif
+empilait les cinq permissions sur chaque route : un N+1 recevait 403 en
+ouvrant la grille d'une fiche (B1, cf. §4).
+
+- Le front lisait déjà la grille avec la bonne permission : la grille de
+  notation de la fiche s'affiche maintenant pour le N+1 et pour l'agent.
+- `EvaluationsGrilleNotation` : le message 403 n'annonce plus un correctif
+  backend ; il dit au compte qu'il lui manque `consulter-evaluations`.
+- Onglet « Grille de critères » (`/evaluations/criteres`) : **inchangé**, gate
+  `creer-evaluations`. C'est un écran de paramétrage ; notateur et agent voient
+  la grille dans chaque fiche. À rouvrir en lecture seule si la DRHL le
+  demande (la page gère déjà `can-write`).
+
+### Fiche d'évaluation PDF
+
+`GET …/pdf` inchangé côté contrat. Le PDF recalcule lui-même absences non
+justifiées et sanctions sur la période de la session, et reprend les
+connaissances complémentaires. Rien à faire côté front.
+
+### Remontées backend
+
+| # | Constat |
+|---|---|
+| B1 | Toujours présent sur `users`, `roles`, `grille-classes` : même correctif `middlewareFor` à appliquer. |
+| B8–B12 | Inchangés (aucun fichier congés touché dans ce diff). |
+| — | `AgentsGestRhSeeder` lit maintenant le dump dans `database/dumps/`. |
 
 ## 6. Décisions à trancher
 

@@ -29,9 +29,11 @@ const { data, pending, error } = useAsyncData("questions-evaluation-actives", ()
   useQuestionsEvaluationApi().list({ actif: true }),
 );
 
-// La grille est lue sur une route de référentiel. Si elle est refusée (403),
-// le notateur doit savoir pourquoi le formulaire n'apparaît pas, plutôt que de
-// voir « Impossible de charger les données ».
+// La grille est lue sur une route de référentiel : `consulter-evaluations`
+// (notateur N+1, agent évalué, RH) depuis le backend develop @ ee78aa6 ; seule
+// l'écriture exige `creer-evaluations`. Un 403 signifie donc que le compte n'a
+// pas `consulter-evaluations` : on le dit, plutôt que d'afficher « Impossible
+// de charger les données ».
 const grilleRefusee = computed(() => (error.value as { statusCode?: number } | null)?.statusCode === 403);
 
 const notesParQuestion = computed(
@@ -145,7 +147,7 @@ const nbNotes = computed(() => questions.value.filter((q) => saisie[q.id] != nul
     variant="subtle"
     icon="i-lucide-lock"
     title="Grille de critères inaccessible avec votre compte"
-    description="L'API refuse la lecture de la grille (403) : la route exige actuellement la permission « creer-evaluations », que les notateurs (N+1) n'ont pas. Correction attendue côté backend."
+    description="L'API refuse la lecture de la grille (403) : votre compte n'a pas la permission « consulter-evaluations ». Contactez la DRHL pour qu'elle l'ajoute à votre rôle."
   />
   <BaseDataState
     v-else
