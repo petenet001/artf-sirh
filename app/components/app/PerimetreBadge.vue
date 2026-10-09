@@ -39,7 +39,7 @@ const infobulle = computed(
 <template>
   <UBadge
     v-if="restreint"
-    color="neutral"
+    color="primary"
     variant="subtle"
     icon="i-lucide-scan-eye"
     :title="infobulle"
