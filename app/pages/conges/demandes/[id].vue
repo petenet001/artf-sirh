@@ -38,7 +38,7 @@ const demande = computed(() => data.value?.data ?? null);
 const annuelsApi = useCongesAnnuelsApi();
 const annuel = computed(() => !!demande.value && estCircuitAnnuel(demande.value));
 const campagneId = computed(() => demande.value?.campagne_conge_annuel_id ?? 0);
-const { data: campagneData } = useAsyncData(
+const { data: campagneData, refresh: relireCampagne } = useAsyncData(
   () => `demande-conge-campagne-${campagneId.value}`,
   () => (campagneId.value ? annuelsApi.campagnes.getById(campagneId.value) : Promise.resolve(null)),
   { watch: [campagneId] },
@@ -47,6 +47,10 @@ const campagne = computed(() => campagneData.value?.data ?? null);
 const enAttenteCloture = computed(
   () => annuel.value && !!demande.value && !traitementOuvert(demande.value, campagne.value),
 );
+
+// Au retour sur l'onglet, relire la demande et sa campagne : une clôture faite
+// ailleurs doit faire apparaître les actions du circuit sans rechargement.
+useAuRetourOnglet(() => Promise.all([refresh(), relireCampagne()]));
 
 // Attestation : circuit du type terminé et accordé (y compris N+1 seul).
 const attestationDispo = computed(() => !!demande.value && estCongeAccorde(demande.value));

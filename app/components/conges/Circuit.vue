@@ -62,14 +62,27 @@ const ETAT_META: Record<EtapeEtat, { icon: string; classe: string; label: string
 // File du signataire connecté, rechargée à chaque changement d'étape. La
 // permission `valider-conges` ne fait qu'ouvrir la route : un RH n'est pas le
 // N+1, un chef ne signe pas la RH (403) — d'où ce contrôle par la file.
-const { data: file } = useAsyncData(
+//
+// La file dépend aussi de la campagne : tant qu'elle est ouverte, on ne la lit
+// pas. Il faut donc la relire quand la campagne se ferme, pas seulement quand
+// l'étape change — sinon le N+1 ne voit son bouton qu'après un rechargement
+// complet. On la relit aussi au retour sur l'onglet : la clôture ou la
+// correction d'un N+1 se fait souvent dans un autre onglet.
+const { data: file, refresh: relireFile } = useAsyncData(
   () => `conge-signable-${id.value}`,
   () =>
     auth.can("valider-conges") && props.demande.prochaine_etape && !props.enAttenteCloture
       ? api.value.aValider()
       : Promise.resolve(null),
-  { watch: [() => props.demande.prochaine_etape] },
+  {
+    watch: [
+      () => props.demande.prochaine_etape,
+      () => props.demande.statut,
+      () => props.enAttenteCloture,
+    ],
+  },
 );
+useAuRetourOnglet(relireFile);
 
 /** L'utilisateur peut-il signer l'étape courante ? */
 const peutSigner = computed(() => file.value?.data.some((d) => d.id === id.value) ?? false);
